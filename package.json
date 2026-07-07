@@ -206,6 +206,12 @@
         "icon": "$(git-commit)"
       },
       {
+        "command": "aidlc.runTests",
+        "title": "Run Project Tests",
+        "category": "AIDLC",
+        "icon": "$(beaker)"
+      },
+      {
         "command": "aidlc.openExternalGitHub",
         "title": "Open on GitHub",
         "category": "AIDLC"
@@ -382,6 +388,16 @@
           "type": "number",
           "default": 600,
           "description": "Abort a 'claudeCode' generation after this many seconds so it can't hang indefinitely. Subagent-assisted runs need more headroom."
+        },
+        "aidlc.test.command": {
+          "type": "string",
+          "default": "",
+          "description": "Shell command 'Run Project Tests' executes in the workspace root (e.g. 'pnpm -r test'). Empty = the package.json test script via the detected package manager."
+        },
+        "aidlc.test.timeoutSeconds": {
+          "type": "number",
+          "default": 900,
+          "description": "Abort a test run after this many seconds."
         },
         "aidlc.claudeCode.useSubagents": {
           "type": "boolean",

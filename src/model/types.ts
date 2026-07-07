@@ -84,6 +84,21 @@ export interface RunRecord {
   agents: string[];
 }
 
+/** One execution of the project's test suite (AI-DLC Build & Test metrics). */
+export interface TestRunRecord {
+  /** ISO-8601 start timestamp. */
+  at: string;
+  command: string;
+  ok: boolean;
+  exitCode: number | null;
+  durationMs: number;
+  total?: number;
+  passed?: number;
+  failed?: number;
+  skipped?: number;
+  coveragePct?: number;
+}
+
 /** Full runtime state of the tracked project. */
 export interface ProjectState {
   name: string;
@@ -102,6 +117,8 @@ export interface ProjectState {
   jiraEpics?: Partial<Record<PhaseId, string>>;
   /** Most recent generation runs, newest first (capped). */
   runs?: RunRecord[];
+  /** Most recent test-suite executions, newest first (capped). */
+  testRuns?: TestRunRecord[];
 }
 
 /**
@@ -118,4 +135,5 @@ export interface PersistedState {
   lastSync?: string;
   jiraEpics?: Partial<Record<PhaseId, string>>;
   runs?: RunRecord[];
+  testRuns?: TestRunRecord[];
 }

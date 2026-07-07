@@ -28,6 +28,14 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Test monitoring & KPIs** (aligned with the AI-DLC Build & Test stage from
+  awslabs/aidlc-workflows) — "Run Project Tests" executes the configured test
+  command (`aidlc.test.command`, auto-detects the package.json test script),
+  streams output to an "AIDLC Tests" channel, parses node:test/Jest/Vitest/
+  pytest/Mocha summaries plus istanbul coverage, and persists a capped history.
+  The dashboard gains a Tests KPI (pass/total + coverage, click to run), an AI
+  generation KPI (total cost/runs), and a Tests panel with a pass-rate history
+  bar strip.
 - **Dev activity per unit** — the dashboard's units table gains a Dev column:
   commits and branch matched by the unit's Jira key (local git), plus GitHub
   PRs with state (open/merged/closed) and check status for open PRs, clickable

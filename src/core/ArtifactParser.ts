@@ -81,6 +81,7 @@ export class ArtifactParser {
       lastSync: persisted?.lastSync,
       jiraEpics: persisted?.jiraEpics,
       runs: persisted?.runs,
+      testRuns: persisted?.testRuns,
     };
   }
 

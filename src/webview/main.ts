@@ -139,7 +139,55 @@ function kpis(model: DashboardModel): string {
       "",
       model.jiraBaseUrl ? "" : ""
     )}
+    ${testsKpi(model)}
+    ${aiKpi(model)}
   </section>`;
+}
+
+function testsKpi(model: DashboardModel): string {
+  const t = model.tests.last;
+  if (!t) {
+    return `<div class="kpi kpi-action"${cmd("aidlc.runTests")} title="Run the project test suite">
+      <span class="micro">Tests</span>
+      <span class="kpi-value">—</span>
+      <span class="kpi-sub">click to run</span>
+    </div>`;
+  }
+  const value =
+    t.total !== undefined
+      ? `${t.passed ?? 0}<small>/${t.total}</small>`
+      : t.ok
+        ? "PASS"
+        : "FAIL";
+  const sub =
+    t.coveragePct !== undefined
+      ? `coverage ${t.coveragePct}%`
+      : `${Math.round(t.durationMs / 1000)}s · ${new Date(t.at).toLocaleTimeString(
+          undefined,
+          { hour: "2-digit", minute: "2-digit" }
+        )}`;
+  return `<div class="kpi kpi-action ${t.ok ? "good" : "danger"}"${cmd(
+    "aidlc.runTests"
+  )} title="${esc(t.command)} — click to re-run">
+    <span class="micro">Tests</span>
+    <span class="kpi-value">${value}</span>
+    <span class="kpi-sub">${esc(sub)}</span>
+  </div>`;
+}
+
+function aiKpi(model: DashboardModel): string {
+  const value =
+    model.ai.costUsd !== undefined
+      ? `$${model.ai.costUsd.toFixed(2)}`
+      : String(model.ai.count);
+  const sub = `${model.ai.count} runs · ${Math.round(
+    model.ai.totalDurationMs / 1000
+  )}s total`;
+  return `<div class="kpi">
+    <span class="micro">AI generation</span>
+    <span class="kpi-value">${value}</span>
+    <span class="kpi-sub">${esc(sub)}</span>
+  </div>`;
 }
 
 function approvalsQueue(model: DashboardModel): string {
@@ -197,6 +245,46 @@ function runningNow(model: DashboardModel): string {
   return `<section class="panel running-rail">
     <header class="panel-head"><h2>Generating now</h2></header>
     ${rows}
+  </section>`;
+}
+
+function testsPanel(model: DashboardModel): string {
+  const t = model.tests;
+  if (!t.last && t.history.length === 0) {
+    return "";
+  }
+  const bars = t.history
+    .map(
+      (h, i) =>
+        `<span class="tbar ${h.ok ? "ok" : "fail"}" data-h="${Math.max(
+          h.rate,
+          8
+        )}" title="run ${i + 1}: ${h.rate}%"></span>`
+    )
+    .join("");
+  const last = t.last;
+  const meta = last
+    ? [
+        last.ok ? "PASS" : "FAIL",
+        last.total !== undefined
+          ? `${last.passed ?? 0}/${last.total}${
+              last.failed ? ` (${last.failed} failed)` : ""
+            }`
+          : undefined,
+        last.coveragePct !== undefined ? `cov ${last.coveragePct}%` : undefined,
+        `${Math.round(last.durationMs / 1000)}s`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "no runs yet";
+  return `<section class="panel${last && !last.ok ? " fail-rail" : ""}">
+    <header class="panel-head">
+      <h2>Tests</h2>
+      <span class="panel-meta">${esc(meta)}</span>
+      <span class="panel-spacer"></span>
+      <button class="btn"${cmd("aidlc.runTests")}>⏵ Run tests</button>
+    </header>
+    <div class="tbars">${bars || `<span class="empty-hint">history appears after the first run</span>`}</div>
   </section>`;
 }
 
@@ -400,6 +488,7 @@ function render(model: DashboardModel): void {
     `<div class="phase-grid">${model.phases
       .map((p) => phasePanel(p, model))
       .join("")}</div>`,
+    testsPanel(model),
     recentRuns(model),
   ].join("");
 
@@ -407,10 +496,17 @@ function render(model: DashboardModel): void {
 }
 
 function applyBars(root: HTMLElement): void {
+  // CSP-safe dynamic sizing: widths/heights via CSSOM, never inline styles.
   root.querySelectorAll<HTMLElement>(".bar-fill").forEach((el) => {
     const p = el.getAttribute("data-pct");
     if (p !== null) {
       el.style.width = `${p}%`;
+    }
+  });
+  root.querySelectorAll<HTMLElement>("[data-h]").forEach((el) => {
+    const h = el.getAttribute("data-h");
+    if (h !== null) {
+      el.style.height = `${h}%`;
     }
   });
 }

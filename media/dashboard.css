@@ -129,7 +129,7 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
 .kpis {
   display: grid;
-  grid-template-columns: minmax(200px, 1.6fr) repeat(4, minmax(120px, 1fr));
+  grid-template-columns: minmax(190px, 1.5fr) repeat(6, minmax(105px, 1fr));
   gap: 1px;
   margin: 16px 0;
   border: 1px solid var(--line);
@@ -155,6 +155,9 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
 .kpi.attention .kpi-value { color: var(--st-awaiting_approval); }
 .kpi.danger .kpi-value { color: var(--st-blocked); }
+.kpi.good .kpi-value { color: var(--st-complete); }
+.kpi.kpi-action { cursor: pointer; }
+.kpi.kpi-action:hover { background: var(--hover); }
 
 .bar {
   height: 4px;
@@ -342,6 +345,26 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 .seg.st-blocked { background: var(--st-blocked); }
 .seg.clickable { cursor: pointer; }
 .seg.clickable:hover { outline: 1px solid var(--vscode-foreground); }
+
+/* ----------------------------------------------------------- tests panel -- */
+
+.panel.fail-rail { border-left-color: var(--st-blocked); }
+
+.tbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 42px;
+  padding: 4px 2px 0;
+}
+
+.tbar {
+  width: 16px;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--faint) 30%, transparent);
+}
+.tbar.ok { background: var(--st-complete); }
+.tbar.fail { background: var(--st-blocked); }
 
 /* ----------------------------------------------------------- dev column -- */
 

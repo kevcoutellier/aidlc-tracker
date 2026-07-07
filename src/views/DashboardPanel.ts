@@ -22,6 +22,7 @@ const ALLOWED_COMMANDS = new Set([
   "aidlc.openJiraIssue",
   "aidlc.refreshDevActivity",
   "aidlc.openExternalGitHub",
+  "aidlc.runTests",
 ]);
 
 /** Singleton webview panel showing lifecycle progress and quick actions. */

@@ -63,6 +63,29 @@ export interface RunningItem {
   unitTitle?: string;
 }
 
+/** Aggregated test-suite health for the KPI strip and Tests panel. */
+export interface TestsView {
+  last?: {
+    at: string;
+    ok: boolean;
+    passed?: number;
+    failed?: number;
+    total?: number;
+    coveragePct?: number;
+    durationMs: number;
+    command: string;
+  };
+  /** Newest-last (chronological) mini-history for the bar strip. */
+  history: Array<{ ok: boolean; rate: number }>;
+}
+
+/** Aggregated AI-generation stats across recorded runs. */
+export interface AiStatsView {
+  count: number;
+  costUsd?: number;
+  totalDurationMs: number;
+}
+
 /** A past generation run, for the "recent runs" panel. */
 export interface RunView {
   stageName: string;
@@ -88,6 +111,8 @@ export interface DashboardModel {
   approvals: ApprovalItem[];
   running: RunningItem[];
   runs: RunView[];
+  tests: TestsView;
+  ai: AiStatsView;
   blockedCount: number;
   unitsDone: number;
   unitsTotal: number;
@@ -144,6 +169,8 @@ function emptyModel(): DashboardModel {
     approvals: [],
     running: [],
     runs: [],
+    tests: { history: [] },
+    ai: { count: 0, totalDurationMs: 0 },
     blockedCount: 0,
     unitsDone: 0,
     unitsTotal: 0,
@@ -277,6 +304,45 @@ export function buildDashboardModel(
     agents: r.agents ?? [],
   }));
 
+  const testRuns = state.testRuns ?? [];
+  const lastTest = testRuns[0];
+  const tests: TestsView = {
+    last: lastTest
+      ? {
+          at: lastTest.at,
+          ok: lastTest.ok,
+          passed: lastTest.passed,
+          failed: lastTest.failed,
+          total: lastTest.total,
+          coveragePct: lastTest.coveragePct,
+          durationMs: lastTest.durationMs,
+          command: lastTest.command,
+        }
+      : undefined,
+    history: testRuns
+      .slice(0, 12)
+      .reverse()
+      .map((t) => ({
+        ok: t.ok,
+        rate:
+          t.total && t.total > 0
+            ? Math.round(((t.passed ?? 0) / t.total) * 100)
+            : t.ok
+              ? 100
+              : 0,
+      })),
+  };
+
+  const aiRuns = state.runs ?? [];
+  const costs = aiRuns.filter((r) => r.costUsd !== undefined);
+  const ai: AiStatsView = {
+    count: aiRuns.length,
+    costUsd: costs.length
+      ? costs.reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
+      : undefined,
+    totalDurationMs: aiRuns.reduce((sum, r) => sum + (r.durationMs ?? 0), 0),
+  };
+
   return {
     hasProject: true,
     name: state.name,
@@ -288,6 +354,8 @@ export function buildDashboardModel(
     approvals,
     running,
     runs,
+    tests,
+    ai,
     blockedCount,
     unitsDone: state.units.filter((u) => u.status === "complete").length,
     unitsTotal: state.units.length,

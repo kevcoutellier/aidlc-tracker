@@ -43,6 +43,7 @@ export function toPersisted(state: ProjectState): PersistedState {
     lastSync: state.lastSync,
     jiraEpics: state.jiraEpics,
     runs: state.runs,
+    testRuns: state.testRuns,
   };
 }
 

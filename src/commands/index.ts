@@ -14,6 +14,7 @@ import { docsChildUri } from "../core/paths";
 import { exists } from "../core/fsUtil";
 import { DashboardPanel } from "../views/DashboardPanel";
 import { Orchestrator } from "../orchestrator/Orchestrator";
+import { TestRunner } from "../testing/TestRunner";
 import { AnthropicClient } from "../orchestrator/AnthropicClient";
 import { createJiraSync } from "../integrations/jira/JiraSync";
 import { TrackerSync } from "../integrations/TrackerSync";
@@ -92,6 +93,8 @@ export function registerCommands(
   register("aidlc.refreshDevActivity", (interactive?: unknown) =>
     refreshDevActivity(services, interactive !== false)
   );
+  const testRunner = new TestRunner(services);
+  register("aidlc.runTests", () => testRunner.run());
   register("aidlc.openExternalGitHub", (url: unknown) => {
     if (typeof url === "string" && /^https:\/\/github\.com\//.test(url)) {
       void vscode.env.openExternal(vscode.Uri.parse(url));
