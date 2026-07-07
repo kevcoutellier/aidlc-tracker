@@ -74,15 +74,20 @@ function masthead(model: DashboardModel): string {
     })
     .join(`<span class="step-link"></span>`);
 
+  const ext = model.extensions.length
+    ? model.extensions.map((n) => `<span class="ext-chip">${esc(n)}</span>`).join("")
+    : `<span class="ext-chip none">no extensions</span>`;
   return `<header class="mast">
     <div class="mast-id">
       <p class="micro">AI-DLC · Operations console</p>
       <h1>${esc(model.name)}</h1>
+      <div class="ext-row"${cmd("aidlc.configureExtensions")} title="Configure AI-DLC extensions">${ext}</div>
     </div>
     <div class="stepper">${steps}</div>
     <div class="mast-actions">
       <button class="btn primary"${cmd("aidlc.runNextStage")}>▶ Run next stage</button>
       <button class="btn"${cmd("aidlc.syncToJira")}>⇅ Sync Jira</button>
+      <button class="btn ghost"${cmd("aidlc.openAuditLog")}>▤ Audit</button>
       <button class="btn ghost"${cmd("aidlc.refresh")}>⟳</button>
     </div>
   </header>`;

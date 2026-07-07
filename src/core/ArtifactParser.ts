@@ -82,6 +82,7 @@ export class ArtifactParser {
       jiraEpics: persisted?.jiraEpics,
       runs: persisted?.runs,
       testRuns: persisted?.testRuns,
+      extensions: persisted?.extensions,
     };
   }
 

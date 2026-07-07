@@ -15,6 +15,7 @@ import { exists } from "../core/fsUtil";
 import { DashboardPanel } from "../views/DashboardPanel";
 import { Orchestrator } from "../orchestrator/Orchestrator";
 import { TestRunner } from "../testing/TestRunner";
+import { EXTENSIONS } from "../model/extensions";
 import { AnthropicClient } from "../orchestrator/AnthropicClient";
 import { createJiraSync } from "../integrations/jira/JiraSync";
 import { TrackerSync } from "../integrations/TrackerSync";
@@ -38,12 +39,12 @@ export function registerCommands(
   services: AidlcServices,
   orchestrator: Orchestrator
 ): void {
-  const { context, reload } = services;
+  const { context } = services;
 
   const register = (id: string, handler: (...args: any[]) => any) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, handler));
 
-  register("aidlc.initProject", () => runInit(reload));
+  register("aidlc.initProject", () => runInit(services));
   register("aidlc.refresh", () => refreshAll(services));
   register("aidlc.openArtifact", (relativePath: string) =>
     openArtifact(relativePath)
@@ -95,6 +96,8 @@ export function registerCommands(
   );
   const testRunner = new TestRunner(services);
   register("aidlc.runTests", () => testRunner.run());
+  register("aidlc.configureExtensions", () => configureExtensions(services));
+  register("aidlc.openAuditLog", () => openArtifact("audit.md"));
   register("aidlc.openExternalGitHub", (url: unknown) => {
     if (typeof url === "string" && /^https:\/\/github\.com\//.test(url)) {
       void vscode.env.openExternal(vscode.Uri.parse(url));
@@ -139,6 +142,61 @@ export async function refreshDevActivity(
   }
 }
 
+/** Toggle the opt-in AI-DLC extensions (security/resiliency/PBT baselines). */
+async function configureExtensions(services: AidlcServices): Promise<void> {
+  const { store, writer, reload, audit } = services;
+  if (!store.state) {
+    void vscode.window.showErrorMessage("Initialize an AI-DLC project first.");
+    return;
+  }
+  const current = store.state.extensions ?? {};
+  const picks = await vscode.window.showQuickPick(
+    EXTENSIONS.map((e) => ({
+      label: e.name,
+      description: e.id,
+      detail: e.description,
+      picked: !!current[e.id],
+      id: e.id,
+    })),
+    {
+      title: "AI-DLC Extensions",
+      placeHolder:
+        "Enabled extensions inject their rules into matching stages and require a compliance section per artifact.",
+      canPickMany: true,
+    }
+  );
+  if (!picks) {
+    return;
+  }
+  const enabled: Record<string, boolean> = {};
+  for (const e of EXTENSIONS) {
+    enabled[e.id] = picks.some((p) => p.id === e.id);
+  }
+  store.update((s) => {
+    s.extensions = enabled;
+  });
+  await writer.save(store.state);
+
+  // Self-documenting rules folder, mirroring the AWS delivery convention.
+  for (const e of EXTENSIONS.filter((x) => enabled[x.id])) {
+    await writer.writeArtifact(
+      `rules/extensions/${e.id}.md`,
+      `# ${e.name} (enabled)\n\n${e.directive}\n`
+    );
+  }
+  await reload();
+
+  const names = EXTENSIONS.filter((e) => enabled[e.id]).map((e) => e.name);
+  void audit.append("extensions.configure", {
+    enabled: names.join(", ") || "(none)",
+  });
+  void vscode.window.showInformationMessage(
+    names.length
+      ? `Extensions enabled: ${names.join(", ")}.`
+      : "All extensions disabled."
+  );
+}
+
 /** Reset a stage back to not_started (e.g. to clear a stuck run). */
 async function resetStage(
   services: AidlcServices,
@@ -162,6 +220,10 @@ async function resetStage(
   });
   await writer.save(store.state);
   await reload();
+  void services.audit.append("stage.reset", {
+    stage: stageById(stageId)?.name ?? stageId,
+    unit: unitId,
+  });
   void vscode.window.showInformationMessage(
     `Reset "${stageById(stageId)?.name ?? stageId}".`
   );
@@ -224,6 +286,10 @@ async function syncJira(
     await writer.save(store.state);
     await reload();
     void services.refreshJiraStatus();
+    void services.audit.append(`jira.${direction}`, {
+      created: result.created,
+      updated: result.updated,
+    });
     reportSync(sync, direction, result);
   } catch (err) {
     void vscode.window.showErrorMessage(
@@ -299,6 +365,7 @@ async function importUnitsFromJira(services: AidlcServices): Promise<void> {
     });
     await writer.save(store.state);
     await reload();
+    void services.audit.append("jira.import.units", { created, updated });
     void vscode.window.showInformationMessage(
       `Units of work from Jira: ${created} created, ${updated} updated.`
     );
@@ -420,6 +487,7 @@ async function importFromJira(
     if (uri) {
       await vscode.window.showTextDocument(uri, { preview: true });
     }
+    void services.audit.append(`jira.import.${kind}`, { count });
     void vscode.window.showInformationMessage(
       `Imported ${count} ${spec.label} from Jira.`
     );
@@ -590,7 +658,7 @@ function reportSync(
     });
 }
 
-async function runInit(reload: () => Promise<void>): Promise<void> {
+async function runInit(services: AidlcServices): Promise<void> {
   if (!vscode.workspace.workspaceFolders?.length) {
     void vscode.window.showErrorMessage(
       "Open a folder before initializing an AI-DLC project."
@@ -599,7 +667,10 @@ async function runInit(reload: () => Promise<void>): Promise<void> {
   }
   try {
     await initProject();
-    await reload();
+    await services.reload();
+    void services.audit.append("project.init", {
+      workspace: vscode.workspace.workspaceFolders[0].name,
+    });
     void vscode.window.showInformationMessage(
       "AI-DLC project initialized. See the AIDLC view to drive the lifecycle."
     );
@@ -643,6 +714,7 @@ async function addUnitOfWork(services: AidlcServices): Promise<void> {
   store.update((s) => s.units.push(unit));
   await writer.save(store.state);
   await reload();
+  void services.audit.append("unit.add", { unit: unit.id, title: unit.title });
   void vscode.window.showInformationMessage(`Added unit of work: ${unit.title}`);
 }
 

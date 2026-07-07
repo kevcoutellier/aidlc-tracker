@@ -44,6 +44,7 @@ export function toPersisted(state: ProjectState): PersistedState {
     jiraEpics: state.jiraEpics,
     runs: state.runs,
     testRuns: state.testRuns,
+    extensions: state.extensions,
   };
 }
 

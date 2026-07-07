@@ -119,6 +119,8 @@ export interface ProjectState {
   runs?: RunRecord[];
   /** Most recent test-suite executions, newest first (capped). */
   testRuns?: TestRunRecord[];
+  /** Opt-in AI-DLC extensions (extension id -> enabled). */
+  extensions?: Record<string, boolean>;
 }
 
 /**
@@ -136,4 +138,5 @@ export interface PersistedState {
   jiraEpics?: Partial<Record<PhaseId, string>>;
   runs?: RunRecord[];
   testRuns?: TestRunRecord[];
+  extensions?: Record<string, boolean>;
 }

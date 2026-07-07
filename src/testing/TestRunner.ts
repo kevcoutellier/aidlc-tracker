@@ -86,6 +86,11 @@ export class TestRunner {
             }${record.coveragePct !== undefined ? ` · coverage ${record.coveragePct}%` : ""}`
           : `exit code ${exitCode}`;
       this.output.appendLine(`\n— result: ${record.ok ? "PASS" : "FAIL"} · ${detail}`);
+      void this.services.audit.append("tests.run", {
+        command,
+        result: record.ok ? "PASS" : "FAIL",
+        detail,
+      });
       if (record.ok) {
         void vscode.window.showInformationMessage(`Tests passed — ${detail}`);
       } else {

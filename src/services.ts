@@ -3,6 +3,7 @@ import { ProjectStore } from "./core/ProjectStore";
 import { ArtifactParser } from "./core/ArtifactParser";
 import { StateWriter } from "./core/StateWriter";
 import { ClaudeStore } from "./core/ClaudeStore";
+import { AuditLog } from "./core/AuditLog";
 import { JiraStatusBar } from "./integrations/jira/JiraStatusBar";
 import {
   DevActivityService,
@@ -25,6 +26,7 @@ export interface AidlcServices {
   readonly jiraStatusBar: JiraStatusBar;
   readonly devStore: DevActivityStore;
   readonly devService: DevActivityService;
+  readonly audit: AuditLog;
   /** Re-read AI-DLC state from disk into the store and refresh context keys. */
   reload(): Promise<void>;
   /** Re-scan `.claude/` assets into the Claude store. */

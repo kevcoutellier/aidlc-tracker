@@ -28,6 +28,18 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Append-only audit log** (`aidlc-docs/audit.md`, per awslabs/aidlc-workflows)
+  — every significant event is journaled with an ISO-8601 timestamp: generation
+  start/complete/error/cancel (with model, turns, cost, subagents), approvals,
+  change requests (raw guidance verbatim, never summarized), stage resets, unit
+  additions, Jira sync/imports, test runs, extension changes. "Open Audit Log"
+  command + dashboard button.
+- **AI-DLC extensions (opt-in)** mirroring the AWS registry: Security Baseline
+  (SECURITY-01…15), Resiliency Baseline (RESILIENCY-01…15), Property-Based
+  Testing. Enabled via "Configure AI-DLC Extensions" (or the masthead chips);
+  each enabled extension injects its rules into matching stages, mandates a
+  per-rule compliance section (compliant / non-compliant / N/A) in artifacts,
+  and writes a self-documenting rule file under `aidlc-docs/rules/extensions/`.
 - **Test monitoring & KPIs** (aligned with the AI-DLC Build & Test stage from
   awslabs/aidlc-workflows) — "Run Project Tests" executes the configured test
   command (`aidlc.test.command`, auto-detects the package.json test script),

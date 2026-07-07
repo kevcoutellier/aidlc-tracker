@@ -11,6 +11,7 @@ import {
   stagesForPhase,
 } from "./aidlcDefinition";
 import { DevActivity, UnitDevInfo } from "../integrations/github/devModel";
+import { enabledExtensionNames } from "./extensions";
 
 export type { DevActivity, UnitDevInfo, PrInfo } from "../integrations/github/devModel";
 
@@ -113,6 +114,8 @@ export interface DashboardModel {
   runs: RunView[];
   tests: TestsView;
   ai: AiStatsView;
+  /** Names of enabled AI-DLC extensions. */
+  extensions: string[];
   blockedCount: number;
   unitsDone: number;
   unitsTotal: number;
@@ -171,6 +174,7 @@ function emptyModel(): DashboardModel {
     runs: [],
     tests: { history: [] },
     ai: { count: 0, totalDurationMs: 0 },
+    extensions: [],
     blockedCount: 0,
     unitsDone: 0,
     unitsTotal: 0,
@@ -356,6 +360,7 @@ export function buildDashboardModel(
     runs,
     tests,
     ai,
+    extensions: enabledExtensionNames(state.extensions),
     blockedCount,
     unitsDone: state.units.filter((u) => u.status === "complete").length,
     unitsTotal: state.units.length,

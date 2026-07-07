@@ -5,6 +5,7 @@ import { StateWriter } from "./core/StateWriter";
 import { FileWatcher } from "./core/FileWatcher";
 import { ClaudeStore } from "./core/ClaudeStore";
 import { ClaudeScanner } from "./core/ClaudeScanner";
+import { AuditLog } from "./core/AuditLog";
 import { AidlcTreeProvider } from "./views/AidlcTreeProvider";
 import { ClaudeAssetsProvider } from "./views/ClaudeAssetsProvider";
 import { registerCommands } from "./commands";
@@ -28,6 +29,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const jiraStatusBar = new JiraStatusBar(context);
   const devStore = new DevActivityStore();
   const devService = new DevActivityService();
+  const audit = new AuditLog();
 
   const reload = async (): Promise<void> => {
     const state = await parser.load();
@@ -60,6 +62,7 @@ export function activate(context: vscode.ExtensionContext): void {
     jiraStatusBar,
     devStore,
     devService,
+    audit,
     reload,
     reloadClaude,
     refreshJiraStatus,

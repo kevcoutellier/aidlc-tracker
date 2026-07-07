@@ -23,6 +23,8 @@ const ALLOWED_COMMANDS = new Set([
   "aidlc.refreshDevActivity",
   "aidlc.openExternalGitHub",
   "aidlc.runTests",
+  "aidlc.configureExtensions",
+  "aidlc.openAuditLog",
 ]);
 
 /** Singleton webview panel showing lifecycle progress and quick actions. */

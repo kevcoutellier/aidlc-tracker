@@ -212,6 +212,18 @@
         "icon": "$(beaker)"
       },
       {
+        "command": "aidlc.configureExtensions",
+        "title": "Configure AI-DLC Extensions",
+        "category": "AIDLC",
+        "icon": "$(extensions)"
+      },
+      {
+        "command": "aidlc.openAuditLog",
+        "title": "Open Audit Log",
+        "category": "AIDLC",
+        "icon": "$(list-flat)"
+      },
+      {
         "command": "aidlc.openExternalGitHub",
         "title": "Open on GitHub",
         "category": "AIDLC"

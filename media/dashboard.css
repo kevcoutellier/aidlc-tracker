@@ -103,6 +103,20 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
 .mast-actions { display: flex; gap: 8px; }
 
+.ext-row { display: flex; gap: 4px; margin-top: 6px; cursor: pointer; }
+.ext-chip {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 7px;
+  border-radius: 2px;
+  color: var(--st-in_progress);
+  border: 1px solid color-mix(in srgb, var(--st-in_progress) 40%, transparent);
+}
+.ext-chip.none { color: var(--faint); border-color: var(--line); }
+.ext-row:hover .ext-chip { background: var(--hover); }
+
 /* -------------------------------------------------------------- buttons -- */
 
 .btn {

@@ -12,6 +12,7 @@ import {
   autonomyDirective,
   instructionFor,
 } from "./prompts";
+import { directivesFor } from "../model/extensions";
 import {
   artifactPath,
   stageById,
@@ -141,6 +142,11 @@ export class Orchestrator {
 
       this.setStatus(stageId, unitId, "in_progress");
       await this.services.writer.save(state);
+      void this.services.audit.append(
+        "stage.generate.start",
+        { stage: def.name, unit: unitId },
+        guidance
+      );
 
       const context = await this.gatherContext(state, stageId, unitId);
       const user = this.buildUserPrompt(stageId, unitId, guidance, context);
@@ -178,6 +184,14 @@ export class Orchestrator {
       );
 
       this.recordRun(stageId, unitId, startedAt, trace);
+      void this.services.audit.append("stage.generate.complete", {
+        stage: def.name,
+        unit: unitId,
+        model: trace?.model,
+        turns: trace?.turns,
+        costUsd: trace?.costUsd?.toFixed(4),
+        subagents: trace?.agents.join(", ") || undefined,
+      });
 
       if (!content || content.trim().length === 0) {
         this.setStatus(stageId, unitId, "blocked");
@@ -222,11 +236,20 @@ export class Orchestrator {
         this.setStatus(stageId, unitId, "not_started");
         await this.services.writer.save(this.services.store.state!);
         await this.services.reload();
+        void this.services.audit.append("stage.generate.cancelled", {
+          stage: def.name,
+          unit: unitId,
+        });
         void vscode.window.showInformationMessage(
           `Cancelled "${def.name}".`
         );
         return;
       }
+      void this.services.audit.append("stage.generate.error", {
+        stage: def.name,
+        unit: unitId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       this.setStatus(stageId, unitId, "blocked");
       await this.services.writer.save(this.services.store.state!);
       await this.services.reload();
@@ -259,6 +282,11 @@ export class Orchestrator {
     this.advancePhase(state);
     await this.services.writer.save(state);
     await this.services.reload();
+    void this.services.audit.append("stage.approve", {
+      stage: stageById(stageId)?.name ?? stageId,
+      unit: unitId,
+      artifact: rel,
+    });
     void vscode.window.showInformationMessage(
       `Approved "${stageById(stageId)?.name ?? stageId}".`
     );
@@ -274,6 +302,11 @@ export class Orchestrator {
     if (!guidance) {
       return;
     }
+    void this.services.audit.append(
+      "stage.request_changes",
+      { stage: stageById(stageId)?.name ?? stageId, unit: unitId },
+      guidance
+    );
     await this.runStage(stageId, unitId, guidance);
   }
 
@@ -328,6 +361,12 @@ export class Orchestrator {
       .getConfiguration("aidlc")
       .get<"assume" | "ask">("orchestrator.autonomy", "assume");
     const parts = [instructionFor(stageId), autonomyDirective(autonomy)];
+    for (const directive of directivesFor(
+      stageId,
+      this.services.store.state?.extensions
+    )) {
+      parts.push(`\n${directive}`);
+    }
     if (unitId) {
       parts.push(`\nThis stage is for the unit of work: "${unitId}".`);
     }
