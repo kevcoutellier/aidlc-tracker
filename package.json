@@ -1,0 +1,475 @@
+{
+  "name": "aidlc-tracker",
+  "displayName": "AIDLC Tracker",
+  "description": "Orchestrate, track, and sync a project through the AI-Driven Development Life Cycle (AI-DLC): Inception → Construction → Operations.",
+  "version": "0.0.1",
+  "publisher": "aidlc",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kevcoutellier/aidlc-tracker.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other",
+    "SCM Providers",
+    "AI"
+  ],
+  "keywords": [
+    "aidlc",
+    "ai-dlc",
+    "lifecycle",
+    "orchestrator",
+    "jira",
+    "anthropic"
+  ],
+  "icon": "media/icon.png",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aidlc-tracker",
+          "title": "AIDLC",
+          "icon": "media/aidlc.svg"
+        }
+      ]
+    },
+    "views": {
+      "aidlc-tracker": [
+        {
+          "id": "aidlcExplorer",
+          "name": "Lifecycle",
+          "contextualTitle": "AIDLC",
+          "icon": "media/aidlc.svg"
+        },
+        {
+          "id": "aidlcClaudeAssets",
+          "name": "Claude Assets",
+          "contextualTitle": "AIDLC",
+          "icon": "media/aidlc.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "aidlcExplorer",
+        "contents": "No AI-DLC project detected in this workspace.\n\nInitialize the AI-DLC structure (aidlc-docs/ + rule files) to start tracking Inception → Construction → Operations.\n[Initialize AI-DLC Project](command:aidlc.initProject)\n\nAlready have artifacts? [Refresh](command:aidlc.refresh)\n\nLearn more about the [AI-Driven Development Life Cycle](https://aws.amazon.com/blogs/devops/ai-driven-development-life-cycle/).",
+        "when": "!aidlc.hasProject"
+      },
+      {
+        "view": "aidlcClaudeAssets",
+        "contents": "No .claude folder or CLAUDE.md detected in this workspace.\n\nThe AIDLC Tracker surfaces your Claude Code agents, commands, skills, memory and settings here once they exist.\n[Refresh](command:aidlc.refresh)",
+        "when": "!aidlc.hasClaude"
+      }
+    ],
+    "commands": [
+      {
+        "command": "aidlc.initProject",
+        "title": "Initialize AI-DLC Project",
+        "category": "AIDLC",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "aidlc.refresh",
+        "title": "Refresh",
+        "category": "AIDLC",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "aidlc.openDashboard",
+        "title": "Open Dashboard",
+        "category": "AIDLC",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "aidlc.runNextStage",
+        "title": "Run Next Stage",
+        "category": "AIDLC",
+        "icon": "$(play)"
+      },
+      {
+        "command": "aidlc.runStage",
+        "title": "Run This Stage",
+        "category": "AIDLC",
+        "icon": "$(play)"
+      },
+      {
+        "command": "aidlc.approveArtifact",
+        "title": "Approve Artifact",
+        "category": "AIDLC",
+        "icon": "$(check)"
+      },
+      {
+        "command": "aidlc.requestChanges",
+        "title": "Request Changes",
+        "category": "AIDLC",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "aidlc.addUnitOfWork",
+        "title": "Add Unit of Work",
+        "category": "AIDLC",
+        "icon": "$(add)"
+      },
+      {
+        "command": "aidlc.resetStage",
+        "title": "Reset Stage",
+        "category": "AIDLC",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "aidlc.openArtifact",
+        "title": "Open Artifact",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.syncToJira",
+        "title": "Sync to Jira",
+        "category": "AIDLC",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "aidlc.pullFromJira",
+        "title": "Pull Status from Jira",
+        "category": "AIDLC",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "aidlc.pullStoriesFromJira",
+        "title": "Import User Stories from Jira",
+        "category": "AIDLC",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "aidlc.pullRequirementsFromJira",
+        "title": "Import Requirements from Jira",
+        "category": "AIDLC",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "aidlc.importUnitsFromJira",
+        "title": "Create Units of Work from Jira",
+        "category": "AIDLC",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "aidlc.setAnthropicKey",
+        "title": "Set Anthropic API Key",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.setAnthropicToken",
+        "title": "Set Anthropic Auth Token (Bearer)",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.setClaudeCodeToken",
+        "title": "Use Claude Code / Subscription (set token)",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.setJiraCredentials",
+        "title": "Set Jira Credentials",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.connectJira",
+        "title": "Connect to Jira",
+        "category": "AIDLC",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "aidlc.jiraMenu",
+        "title": "Jira Actions",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.openClaudeAsset",
+        "title": "Open Claude Asset",
+        "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.openJiraIssue",
+        "title": "Open Jira Issue",
+        "category": "AIDLC"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "aidlc.runNextStage",
+          "when": "view == aidlcExplorer && aidlc.hasProject",
+          "group": "navigation@1"
+        },
+        {
+          "command": "aidlc.openDashboard",
+          "when": "view == aidlcExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "aidlc.syncToJira",
+          "when": "view == aidlcExplorer && aidlc.hasProject",
+          "group": "navigation@3"
+        },
+        {
+          "command": "aidlc.refresh",
+          "when": "view == aidlcExplorer",
+          "group": "navigation@4"
+        },
+        {
+          "command": "aidlc.addUnitOfWork",
+          "when": "view == aidlcExplorer && aidlc.hasProject",
+          "group": "1_modify"
+        },
+        {
+          "command": "aidlc.importUnitsFromJira",
+          "when": "view == aidlcExplorer && aidlc.hasProject",
+          "group": "1_modify"
+        },
+        {
+          "command": "aidlc.pullFromJira",
+          "when": "view == aidlcExplorer && aidlc.hasProject",
+          "group": "2_sync"
+        },
+        {
+          "command": "aidlc.connectJira",
+          "when": "view == aidlcExplorer",
+          "group": "2_sync"
+        },
+        {
+          "command": "aidlc.refresh",
+          "when": "view == aidlcClaudeAssets",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "aidlc.pullStoriesFromJira",
+          "when": "view == aidlcExplorer && viewItem =~ /:user-stories$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "aidlc.pullRequirementsFromJira",
+          "when": "view == aidlcExplorer && viewItem =~ /:requirements-analysis$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "aidlc.importUnitsFromJira",
+          "when": "view == aidlcExplorer && viewItem =~ /:workflow-planning$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "aidlc.runStage",
+          "when": "view == aidlcExplorer && viewItem =~ /^stage:(not_started|blocked|complete)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "aidlc.resetStage",
+          "when": "view == aidlcExplorer && viewItem =~ /^stage:in_progress/",
+          "group": "inline@1"
+        },
+        {
+          "command": "aidlc.approveArtifact",
+          "when": "view == aidlcExplorer && viewItem =~ /^stage:awaiting_approval/",
+          "group": "inline@1"
+        },
+        {
+          "command": "aidlc.requestChanges",
+          "when": "view == aidlcExplorer && viewItem =~ /^stage:awaiting_approval/",
+          "group": "inline@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "aidlc.approveArtifact",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.requestChanges",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.runStage",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.openArtifact",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.openClaudeAsset",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.jiraMenu",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.resetStage",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.openJiraIssue",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AIDLC Tracker",
+      "properties": {
+        "aidlc.docsPath": {
+          "type": "string",
+          "default": "aidlc-docs",
+          "description": "Workspace-relative folder that holds AI-DLC artifacts and state."
+        },
+        "aidlc.anthropic.authMethod": {
+          "type": "string",
+          "enum": [
+            "apiKey",
+            "authToken",
+            "claudeCode"
+          ],
+          "enumDescriptions": [
+            "Anthropic API key (x-api-key) via @anthropic-ai/sdk. Official, billed per use.",
+            "Bearer auth token (Authorization: Bearer) via @anthropic-ai/sdk. For gateways/proxies; a Claude subscription token is not accepted by the raw API.",
+            "Claude Code / subscription via @anthropic-ai/claude-agent-sdk (runs the Claude Code CLI, uses CLAUDE_CODE_OAUTH_TOKEN from 'claude setup-token'). Requires Claude Code installed."
+          ],
+          "default": "apiKey",
+          "description": "How the orchestrator talks to Anthropic. Set the credential via the matching 'Set …' command."
+        },
+        "aidlc.anthropic.betaHeader": {
+          "type": "string",
+          "default": "",
+          "description": "Optional value sent as the 'anthropic-beta' header (e.g. an oauth-* beta when using a Bearer auth token). Leave empty for normal API-key use."
+        },
+        "aidlc.anthropic.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional custom Anthropic-compatible endpoint (e.g. a corporate LLM gateway/proxy that accepts a Bearer token). Leave empty to use the default Anthropic API (api.anthropic.com)."
+        },
+        "aidlc.claudeCode.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to the Claude Code executable used by the 'claudeCode' auth method. Leave empty to let the Agent SDK resolve it (Claude Code must be installed)."
+        },
+        "aidlc.claudeCode.maxTurns": {
+          "type": "number",
+          "default": 12,
+          "description": "Maximum agent turns per generation for the 'claudeCode' backend. Raise if long artifacts get cut off with 'reached maximum number of turns'."
+        },
+        "aidlc.claudeCode.timeoutSeconds": {
+          "type": "number",
+          "default": 600,
+          "description": "Abort a 'claudeCode' generation after this many seconds so it can't hang indefinitely. Subagent-assisted runs need more headroom."
+        },
+        "aidlc.claudeCode.useSubagents": {
+          "type": "boolean",
+          "default": true,
+          "description": "Let generations delegate to the project's Claude Code subagents (.claude/agents) via the Task tool when their expertise matches the stage (e.g. security-engineer for NFR design). Longer and costlier runs; invocations appear in Recent runs."
+        },
+        "aidlc.anthropic.model": {
+          "type": "string",
+          "default": "claude-opus-4-8",
+          "description": "Anthropic model id used by the orchestrator to generate artifacts."
+        },
+        "aidlc.anthropic.maxTokens": {
+          "type": "number",
+          "default": 8192,
+          "description": "Maximum output tokens per orchestrator generation."
+        },
+        "aidlc.orchestrator.requireApproval": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require explicit human approval of every generated artifact before it is written."
+        },
+        "aidlc.orchestrator.autonomy": {
+          "type": "string",
+          "enum": ["assume", "ask"],
+          "enumDescriptions": [
+            "Autonomous: the AI makes reasonable, stated assumptions instead of asking you questions.",
+            "Inquisitive: the AI lists Open Questions for you to answer (via 'Request Changes')."
+          ],
+          "default": "assume",
+          "description": "How the orchestrator handles missing information."
+        },
+        "aidlc.jira.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Jira base URL, e.g. https://your-org.atlassian.net"
+        },
+        "aidlc.jira.email": {
+          "type": "string",
+          "default": "",
+          "description": "Atlassian account email used for Jira Basic auth (API token stored securely, set via 'Set Jira Credentials')."
+        },
+        "aidlc.jira.projectKey": {
+          "type": "string",
+          "default": "",
+          "description": "Jira project key that AI-DLC units of work are synced into, e.g. AIDLC."
+        },
+        "aidlc.jira.storiesJql": {
+          "type": "string",
+          "default": "",
+          "description": "JQL used by 'Import User Stories from Jira'. Empty = 'project = <key> AND issuetype in (Story, \"Récit\") ORDER BY key ASC' (handles English + French Jira). Override to filter differently."
+        },
+        "aidlc.jira.requirementsJql": {
+          "type": "string",
+          "default": "",
+          "description": "JQL used by 'Import Requirements from Jira'. Empty = 'project = <key> AND issuetype in (Epic, \"Épopée\") ORDER BY key ASC'. Add 'AND statusCategory != Done' to exclude completed items."
+        },
+        "aidlc.jira.unitsJql": {
+          "type": "string",
+          "default": "",
+          "description": "JQL used by 'Create Units of Work from Jira'. Empty = 'project = <key> AND issuetype in (Story, \"Récit\") AND statusCategory != Done ORDER BY rank' (open stories only)."
+        },
+        "aidlc.jira.epicIssueType": {
+          "type": "string",
+          "default": "Epic",
+          "description": "Jira issue type used for AI-DLC phases."
+        },
+        "aidlc.jira.unitIssueType": {
+          "type": "string",
+          "default": "Task",
+          "description": "Jira issue type used for AI-DLC units of work."
+        },
+        "aidlc.jira.autoSync": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically push local state to Jira whenever it changes."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "check-types": "tsc --noEmit && tsc --noEmit -p src/webview/tsconfig.json",
+    "lint": "eslint src",
+    "compile-tests": "tsc -p ./ --outDir out",
+    "pretest": "npm run check-types",
+    "test": "npm run compile-tests && node --test \"out/test/unit/**/*.test.js\"",
+    "package:vsix": "vsce package --no-dependencies=false -o aidlc-tracker.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vscode/vsce": "^3.1.0",
+    "esbuild": "^0.23.0",
+    "eslint": "^9.9.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.201",
+    "@anthropic-ai/sdk": "^0.110.0"
+  }
+}
