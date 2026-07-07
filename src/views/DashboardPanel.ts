@@ -20,6 +20,8 @@ const ALLOWED_COMMANDS = new Set([
   "aidlc.importUnitsFromJira",
   "aidlc.connectJira",
   "aidlc.openJiraIssue",
+  "aidlc.refreshDevActivity",
+  "aidlc.openExternalGitHub",
 ]);
 
 /** Singleton webview panel showing lifecycle progress and quick actions. */
@@ -66,11 +68,14 @@ export class DashboardPanel {
     );
 
     this.disposables.push(
-      services.store.onDidChange(() => this.post())
+      services.store.onDidChange(() => this.post()),
+      services.devStore.onDidChange(() => this.post())
     );
 
-    // Push initial state once the webview script has loaded and asked for it.
+    // Push initial state once the webview script has loaded and asked for it,
+    // and kick off a non-interactive dev-activity refresh in the background.
     this.post();
+    void vscode.commands.executeCommand("aidlc.refreshDevActivity", false);
   }
 
   private onMessage(msg: WebviewCommandMessage | { type: "ready" }): void {
@@ -90,6 +95,7 @@ export class DashboardPanel {
       .trim();
     const model = buildDashboardModel(this.services.store.state, {
       jiraBaseUrl: jiraBaseUrl || undefined,
+      dev: this.services.devStore.activity,
     });
     void this.panel.webview.postMessage({ type: "state", model });
   }

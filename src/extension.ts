@@ -12,6 +12,10 @@ import { AidlcServices } from "./services";
 import { AnthropicClient } from "./orchestrator/AnthropicClient";
 import { Orchestrator } from "./orchestrator/Orchestrator";
 import { JiraStatusBar } from "./integrations/jira/JiraStatusBar";
+import {
+  DevActivityService,
+  DevActivityStore,
+} from "./integrations/github/DevActivityService";
 import { docsFolderName } from "./core/paths";
 import { rollUpStatus } from "./model/status";
 
@@ -22,6 +26,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const claudeStore = new ClaudeStore();
   const claudeScanner = new ClaudeScanner();
   const jiraStatusBar = new JiraStatusBar(context);
+  const devStore = new DevActivityStore();
+  const devService = new DevActivityService();
 
   const reload = async (): Promise<void> => {
     const state = await parser.load();
@@ -52,6 +58,8 @@ export function activate(context: vscode.ExtensionContext): void {
     writer,
     claudeStore,
     jiraStatusBar,
+    devStore,
+    devService,
     reload,
     reloadClaude,
     refreshJiraStatus,
@@ -86,6 +94,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     store,
     claudeStore,
+    devStore,
     lifecycleView,
     claudeView,
     docsWatcher,

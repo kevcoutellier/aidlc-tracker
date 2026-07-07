@@ -198,6 +198,17 @@
         "command": "aidlc.openJiraIssue",
         "title": "Open Jira Issue",
         "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.refreshDevActivity",
+        "title": "Refresh Dev Activity (commits/PRs)",
+        "category": "AIDLC",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "aidlc.openExternalGitHub",
+        "title": "Open on GitHub",
+        "category": "AIDLC"
       }
     ],
     "menus": {
@@ -316,6 +327,10 @@
         },
         {
           "command": "aidlc.openJiraIssue",
+          "when": "false"
+        },
+        {
+          "command": "aidlc.openExternalGitHub",
           "when": "false"
         }
       ]

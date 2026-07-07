@@ -28,6 +28,11 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Dev activity per unit** — the dashboard's units table gains a Dev column:
+  commits and branch matched by the unit's Jira key (local git), plus GitHub
+  PRs with state (open/merged/closed) and check status for open PRs, clickable
+  to GitHub. Uses VS Code's built-in GitHub session when available; refreshes
+  on dashboard open and via "Refresh Dev Activity".
 - **Project subagents at work** — generations can now delegate to the
   workspace's own Claude Code agents (`.claude/agents`) via the Task tool
   (`aidlc.claudeCode.useSubagents`, default on; project settings loaded via

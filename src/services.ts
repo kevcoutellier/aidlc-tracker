@@ -4,6 +4,10 @@ import { ArtifactParser } from "./core/ArtifactParser";
 import { StateWriter } from "./core/StateWriter";
 import { ClaudeStore } from "./core/ClaudeStore";
 import { JiraStatusBar } from "./integrations/jira/JiraStatusBar";
+import {
+  DevActivityService,
+  DevActivityStore,
+} from "./integrations/github/DevActivityService";
 
 /** Secret-storage keys. Secrets never live in settings or files. */
 export const SECRET_ANTHROPIC_KEY = "aidlc.anthropicApiKey";
@@ -19,6 +23,8 @@ export interface AidlcServices {
   readonly writer: StateWriter;
   readonly claudeStore: ClaudeStore;
   readonly jiraStatusBar: JiraStatusBar;
+  readonly devStore: DevActivityStore;
+  readonly devService: DevActivityService;
   /** Re-read AI-DLC state from disk into the store and refresh context keys. */
   reload(): Promise<void>;
   /** Re-scan `.claude/` assets into the Claude store. */

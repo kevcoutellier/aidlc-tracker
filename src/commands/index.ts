@@ -89,6 +89,14 @@ export function registerCommands(
     importFromJira(services, "requirements")
   );
   register("aidlc.importUnitsFromJira", () => importUnitsFromJira(services));
+  register("aidlc.refreshDevActivity", (interactive?: unknown) =>
+    refreshDevActivity(services, interactive !== false)
+  );
+  register("aidlc.openExternalGitHub", (url: unknown) => {
+    if (typeof url === "string" && /^https:\/\/github\.com\//.test(url)) {
+      void vscode.env.openExternal(vscode.Uri.parse(url));
+    }
+  });
   register("aidlc.openJiraIssue", (key: unknown) => {
     const baseUrl = vscode.workspace
       .getConfiguration("aidlc")
@@ -108,7 +116,24 @@ async function refreshAll(services: AidlcServices): Promise<void> {
     services.reload(),
     services.reloadClaude(),
     services.refreshJiraStatus(),
+    refreshDevActivity(services, false),
   ]);
+}
+
+/** Collect commits/branches/PRs for the tracked units into the dev store. */
+export async function refreshDevActivity(
+  services: AidlcServices,
+  interactive: boolean
+): Promise<void> {
+  const units = services.store.state?.units ?? [];
+  if (units.length === 0) {
+    return;
+  }
+  const activity = await services.devService.collect(units, interactive);
+  services.devStore.set(activity);
+  if (interactive && activity.error) {
+    void vscode.window.showWarningMessage(`Dev activity: ${activity.error}`);
+  }
 }
 
 /** Reset a stage back to not_started (e.g. to clear a stuck run). */

@@ -1,0 +1,90 @@
+/**
+ * Pure (vscode-free) model + helpers for per-unit development activity:
+ * commits/branches matched by Jira key, and GitHub PRs with their status.
+ */
+
+export type PrState = "open" | "merged" | "closed";
+export type ChecksState = "passing" | "failing" | "pending" | "none";
+
+export interface PrInfo {
+  number: number;
+  title: string;
+  state: PrState;
+  draft?: boolean;
+  url: string;
+  checks?: ChecksState;
+}
+
+export interface UnitDevInfo {
+  branch?: string;
+  commitCount: number;
+  lastCommit?: string;
+  prs: PrInfo[];
+}
+
+export interface DevActivity {
+  repo?: { owner: string; name: string };
+  byUnit: Record<string, UnitDevInfo>;
+  fetchedAt: string;
+  error?: string;
+}
+
+/** Parse a GitHub remote URL (https or ssh) into owner/name. */
+export function parseGitHubRemote(
+  url: string
+): { owner: string; name: string } | undefined {
+  const m =
+    /github\.com[/:]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(url.trim());
+  if (!m) {
+    return undefined;
+  }
+  return { owner: m[1], name: m[2] };
+}
+
+/** Raw shape we consume from GitHub's pulls list API. */
+export interface RawPull {
+  number: number;
+  title?: string;
+  state?: string;
+  draft?: boolean;
+  merged_at?: string | null;
+  html_url?: string;
+  head?: { ref?: string; sha?: string };
+}
+
+export function prState(raw: RawPull): PrState {
+  if (raw.merged_at) {
+    return "merged";
+  }
+  return raw.state === "open" ? "open" : "closed";
+}
+
+/** PRs whose title or head branch mentions the Jira key (case-insensitive). */
+export function matchPullsToKey(pulls: RawPull[], jiraKey: string): RawPull[] {
+  const needle = jiraKey.toLowerCase();
+  return pulls.filter(
+    (p) =>
+      (p.title ?? "").toLowerCase().includes(needle) ||
+      (p.head?.ref ?? "").toLowerCase().includes(needle)
+  );
+}
+
+/** Fold individual check-run conclusions into one state. */
+export function summarizeChecks(
+  conclusions: Array<string | null | undefined>
+): ChecksState {
+  if (conclusions.length === 0) {
+    return "none";
+  }
+  if (
+    conclusions.some(
+      (c) => c === "failure" || c === "timed_out" || c === "cancelled"
+    )
+  ) {
+    return "failing";
+  }
+  if (conclusions.some((c) => c === null || c === undefined)) {
+    return "pending";
+  }
+  return "passing";
+}

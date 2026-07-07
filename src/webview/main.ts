@@ -270,6 +270,49 @@ function pipeline(unit: DashboardUnit): string {
   return `<span class="pipeline">${segs}</span>`;
 }
 
+const PR_GLYPH: Record<string, string> = {
+  open: "●",
+  merged: "⬤✓",
+  closed: "✕",
+};
+const CHECKS_GLYPH: Record<string, string> = {
+  passing: "✓",
+  failing: "✗",
+  pending: "…",
+  none: "",
+};
+
+function devCell(unit: DashboardUnit): string {
+  const dev = unit.dev;
+  if (!dev) {
+    return `<span class="dev-none">—</span>`;
+  }
+  const parts: string[] = [];
+  if (dev.commitCount > 0) {
+    parts.push(
+      `<span class="dev-commits" title="${esc(
+        dev.lastCommit ? `last: ${dev.lastCommit}` : "commits mentioning the key"
+      )}">⧟ ${dev.commitCount}</span>`
+    );
+  }
+  if (dev.branch) {
+    parts.push(`<span class="dev-branch" title="${esc(dev.branch)}">⎇</span>`);
+  }
+  for (const pr of dev.prs) {
+    const checks = pr.checks ? CHECKS_GLYPH[pr.checks] ?? "" : "";
+    parts.push(
+      `<span class="pr-chip pr-${pr.state}"${cmd("aidlc.openExternalGitHub", [
+        pr.url,
+      ])} title="${esc(pr.title)} — ${pr.state}${
+        pr.draft ? " (draft)" : ""
+      }${pr.checks ? ` · checks ${pr.checks}` : ""}">#${pr.number} ${
+        PR_GLYPH[pr.state] ?? ""
+      }${checks}</span>`
+    );
+  }
+  return parts.length ? parts.join(" ") : `<span class="dev-none">·</span>`;
+}
+
 function unitRow(unit: DashboardUnit): string {
   const jira = unit.jiraKey
     ? `<span class="jira-chip"${cmd("aidlc.openJiraIssue", [unit.jiraKey])} title="Open in Jira${
@@ -283,25 +326,34 @@ function unitRow(unit: DashboardUnit): string {
     <td class="td-title">${esc(unit.title)}</td>
     <td class="td-jira">${jira}</td>
     <td class="td-pipeline">${pipeline(unit)}</td>
+    <td class="td-dev">${devCell(unit)}</td>
     <td class="td-count">${unit.done}<small>/${unit.total}</small></td>
   </tr>`;
 }
 
-function constructionPanel(phase: DashboardPhase): string {
+function constructionPanel(phase: DashboardPhase, model: DashboardModel): string {
   const body = phase.units.length
     ? `<table class="units">
         <thead><tr>
-          <th></th><th>Unit of work</th><th>Jira</th><th>Pipeline</th><th>Done</th>
+          <th></th><th>Unit of work</th><th>Jira</th><th>Pipeline</th><th>Dev</th><th>Done</th>
         </tr></thead>
         <tbody>${phase.units.map(unitRow).join("")}</tbody>
       </table>`
     : `<p class="empty-hint">No units yet — pull them from Jira or add one manually.</p>`;
 
+  const devMeta = model.devError
+    ? `<span class="dev-status warn" title="${esc(model.devError)}">dev: partial</span>`
+    : model.devRepo
+      ? `<span class="dev-status">dev: ${esc(model.devRepo)}</span>`
+      : `<span class="dev-status">dev: local git only</span>`;
+
   return `<section class="panel${phase.isCurrent ? " current" : ""}">
     <header class="panel-head">
       <h2>${esc(phase.name)}${phase.isCurrent ? `<span class="badge">current</span>` : ""}</h2>
       <span class="panel-meta">${phase.done}/${phase.total} complete</span>
+      ${devMeta}
       <span class="panel-spacer"></span>
+      <button class="btn ghost"${cmd("aidlc.refreshDevActivity")}>⧟ Refresh dev</button>
       <button class="btn ghost"${cmd("aidlc.importUnitsFromJira")}>⇩ From Jira</button>
       <button class="btn ghost"${cmd("aidlc.addUnitOfWork")}>＋ Unit</button>
     </header>
@@ -309,9 +361,9 @@ function constructionPanel(phase: DashboardPhase): string {
   </section>`;
 }
 
-function phasePanel(phase: DashboardPhase): string {
+function phasePanel(phase: DashboardPhase, model: DashboardModel): string {
   if (phase.isConstruction) {
-    return constructionPanel(phase);
+    return constructionPanel(phase, model);
   }
   return `<section class="panel${phase.isCurrent ? " current" : ""}">
     <header class="panel-head">
@@ -345,7 +397,9 @@ function render(model: DashboardModel): void {
     kpis(model),
     approvalsQueue(model),
     runningNow(model),
-    `<div class="phase-grid">${model.phases.map(phasePanel).join("")}</div>`,
+    `<div class="phase-grid">${model.phases
+      .map((p) => phasePanel(p, model))
+      .join("")}</div>`,
     recentRuns(model),
   ].join("");
 

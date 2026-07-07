@@ -343,6 +343,42 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 .seg.clickable { cursor: pointer; }
 .seg.clickable:hover { outline: 1px solid var(--vscode-foreground); }
 
+/* ----------------------------------------------------------- dev column -- */
+
+.td-dev { width: 150px; white-space: nowrap; }
+
+.dev-commits, .dev-branch {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--faint);
+  margin-right: 4px;
+}
+
+.dev-none { color: var(--faint); }
+
+.pr-chip {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  margin-right: 3px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.pr-chip:hover { background: var(--hover); }
+.pr-chip.pr-open { color: var(--st-in_progress); border-color: color-mix(in srgb, var(--st-in_progress) 45%, transparent); }
+.pr-chip.pr-merged { color: var(--st-complete); border-color: color-mix(in srgb, var(--st-complete) 45%, transparent); }
+.pr-chip.pr-closed { color: var(--st-blocked); border-color: color-mix(in srgb, var(--st-blocked) 40%, transparent); }
+
+.dev-status {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+.dev-status.warn { color: var(--st-awaiting_approval); }
+
 /* ----------------------------------------------------------- recent runs -- */
 
 .run-when {

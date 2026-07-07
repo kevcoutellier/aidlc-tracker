@@ -10,6 +10,9 @@ import {
   stageById,
   stagesForPhase,
 } from "./aidlcDefinition";
+import { DevActivity, UnitDevInfo } from "../integrations/github/devModel";
+
+export type { DevActivity, UnitDevInfo, PrInfo } from "../integrations/github/devModel";
 
 export interface DashboardStage {
   id: string;
@@ -28,6 +31,7 @@ export interface DashboardUnit {
   stages: DashboardStage[];
   done: number;
   total: number;
+  dev?: UnitDevInfo;
 }
 
 export interface DashboardPhase {
@@ -89,11 +93,16 @@ export interface DashboardModel {
   unitsTotal: number;
   jiraLinked: number;
   jiraBaseUrl?: string;
+  /** Repo + freshness of the dev-activity snapshot, when available. */
+  devRepo?: string;
+  devFetchedAt?: string;
+  devError?: string;
 }
 
 /** Host-side extras that the pure model builder can't read itself. */
 export interface DashboardModelOptions {
   jiraBaseUrl?: string;
+  dev?: DevActivity;
 }
 
 /** Message posted from the extension host into the webview. */
@@ -212,6 +221,7 @@ export function buildDashboardModel(
           stages: unitStages,
           done: unitDone,
           total: unitStages.length,
+          dev: options.dev?.byUnit[unit.id],
         });
       }
       total = state.units.length;
@@ -283,5 +293,10 @@ export function buildDashboardModel(
     unitsTotal: state.units.length,
     jiraLinked: state.units.filter((u) => u.jiraKey).length,
     jiraBaseUrl: options.jiraBaseUrl,
+    devRepo: options.dev?.repo
+      ? `${options.dev.repo.owner}/${options.dev.repo.name}`
+      : undefined,
+    devFetchedAt: options.dev?.fetchedAt,
+    devError: options.dev?.error,
   };
 }
