@@ -421,6 +421,13 @@ function unitRow(unit: DashboardUnit): string {
     <td class="td-pipeline">${pipeline(unit)}</td>
     <td class="td-dev">${devCell(unit)}</td>
     <td class="td-count">${unit.done}<small>/${unit.total}</small></td>
+    <td class="td-run">${
+      unit.status === "complete"
+        ? ""
+        : `<span class="run-all"${cmd("aidlc.runUnitPipeline", [
+            { unitId: unit.id },
+          ])} title="Run all remaining stages with auto-approve">▶▶</span>`
+    }</td>
   </tr>`;
 }
 
@@ -428,7 +435,7 @@ function constructionPanel(phase: DashboardPhase, model: DashboardModel): string
   const body = phase.units.length
     ? `<table class="units">
         <thead><tr>
-          <th></th><th>Unit of work</th><th>Jira</th><th>Pipeline</th><th>Dev</th><th>Done</th>
+          <th></th><th>Unit of work</th><th>Jira</th><th>Pipeline</th><th>Dev</th><th>Done</th><th></th>
         </tr></thead>
         <tbody>${phase.units.map(unitRow).join("")}</tbody>
       </table>`

@@ -25,6 +25,7 @@ const ALLOWED_COMMANDS = new Set([
   "aidlc.runTests",
   "aidlc.configureExtensions",
   "aidlc.openAuditLog",
+  "aidlc.runUnitPipeline",
 ]);
 
 /** Singleton webview panel showing lifecycle progress and quick actions. */

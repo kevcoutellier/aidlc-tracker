@@ -8,7 +8,7 @@ import { ClaudeScanner } from "./core/ClaudeScanner";
 import { AuditLog } from "./core/AuditLog";
 import { AidlcTreeProvider } from "./views/AidlcTreeProvider";
 import { ClaudeAssetsProvider } from "./views/ClaudeAssetsProvider";
-import { registerCommands } from "./commands";
+import { monitorTick, registerCommands } from "./commands";
 import { AidlcServices } from "./services";
 import { AnthropicClient } from "./orchestrator/AnthropicClient";
 import { Orchestrator } from "./orchestrator/Orchestrator";
@@ -94,6 +94,33 @@ export function activate(context: vscode.ExtensionContext): void {
 
   registerCommands(services, orchestrator);
 
+  // Passive monitoring: on an interval, silently refresh dev activity and pull
+  // Jira statuses so the console reflects reality without any user action.
+  let monitorTimer: NodeJS.Timeout | undefined;
+  const rescheduleMonitor = (): void => {
+    if (monitorTimer) {
+      clearInterval(monitorTimer);
+      monitorTimer = undefined;
+    }
+    const minutes = vscode.workspace
+      .getConfiguration("aidlc")
+      .get<number>("monitor.intervalMinutes", 5);
+    if (minutes > 0) {
+      monitorTimer = setInterval(
+        () => void monitorTick(services),
+        Math.max(1, minutes) * 60_000
+      );
+    }
+  };
+  rescheduleMonitor();
+  context.subscriptions.push({
+    dispose: () => {
+      if (monitorTimer) {
+        clearInterval(monitorTimer);
+      }
+    },
+  });
+
   context.subscriptions.push(
     store,
     claudeStore,
@@ -110,6 +137,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       if (e.affectsConfiguration("aidlc.jira")) {
         void refreshJiraStatus();
+      }
+      if (e.affectsConfiguration("aidlc.monitor")) {
+        rescheduleMonitor();
       }
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {

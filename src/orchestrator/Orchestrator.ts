@@ -103,11 +103,72 @@ export class Orchestrator {
     await this.runStage(next.stageId, next.unitId);
   }
 
+  /**
+   * Run every remaining stage of a unit sequentially with auto-approve —
+   * explicit hands-off mode for pipelines the user does not want to gate.
+   * Aborts on the first stage that doesn't reach complete.
+   */
+  async runUnitPipeline(unitId: string): Promise<void> {
+    const state = this.services.store.state;
+    const unit = state?.units.find((u) => u.id === unitId);
+    if (!state || !unit) {
+      return;
+    }
+    const remaining = unitStages().filter(
+      (s) => unit.stages[s.id]?.status !== "complete"
+    );
+    if (remaining.length === 0) {
+      void vscode.window.showInformationMessage(
+        `"${unit.title}" is already complete.`
+      );
+      return;
+    }
+    const pick = await vscode.window.showWarningMessage(
+      `Run ${remaining.length} stage(s) of "${unit.title}" sequentially with AUTO-APPROVE? ` +
+        `Artifacts are written without per-stage review (everything is audited).`,
+      { modal: true },
+      "Run pipeline"
+    );
+    if (pick !== "Run pipeline") {
+      return;
+    }
+    void this.services.audit.append("unit.pipeline.start", {
+      unit: unitId,
+      title: unit.title,
+      stages: remaining.length,
+    });
+    for (const stage of remaining) {
+      await this.runStage(stage.id, unitId, undefined, { autoApprove: true });
+      const status = this.services.store.state?.units.find(
+        (u) => u.id === unitId
+      )?.stages[stage.id]?.status;
+      if (status !== "complete") {
+        void this.services.audit.append("unit.pipeline.aborted", {
+          unit: unitId,
+          stage: stage.id,
+          status,
+        });
+        void vscode.window.showWarningMessage(
+          `Pipeline stopped at "${stage.name}" (${status ?? "unknown"}).`
+        );
+        return;
+      }
+    }
+    void this.services.audit.append("unit.pipeline.complete", {
+      unit: unitId,
+      stages: remaining.length,
+    });
+    void vscode.window.showInformationMessage(
+      `Pipeline complete — ${remaining.length} stage(s) of "${unit.title}" done.`
+    );
+  }
+
   /** Generate the artifact for a specific stage and gate it on approval. */
   async runStage(
     stageId: string,
     unitId?: string,
-    guidance?: string
+    guidance?: string,
+    opts?: { autoApprove?: boolean }
   ): Promise<void> {
     const state = this.services.store.state;
     const def = stageById(stageId);
@@ -130,6 +191,7 @@ export class Orchestrator {
       }
       if (
         stageId === "code-generation" &&
+        !opts?.autoApprove &&
         !(await this.confirmCodeGen(unitId))
       ) {
         return;
@@ -205,9 +267,11 @@ export class Orchestrator {
 
       await this.services.writer.writeArtifact(rel, stripToHeading(content));
 
-      const requireApproval = vscode.workspace
-        .getConfiguration("aidlc")
-        .get<boolean>("orchestrator.requireApproval", true);
+      const requireApproval = opts?.autoApprove
+        ? false
+        : vscode.workspace
+            .getConfiguration("aidlc")
+            .get<boolean>("orchestrator.requireApproval", true);
 
       this.setStatus(
         stageId,

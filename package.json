@@ -100,6 +100,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "aidlc.runUnitPipeline",
+        "title": "Run Unit Pipeline (auto-approve)",
+        "category": "AIDLC",
+        "icon": "$(run-all)"
+      },
+      {
         "command": "aidlc.approveArtifact",
         "title": "Approve Artifact",
         "category": "AIDLC",
@@ -304,6 +310,11 @@
           "group": "inline@1"
         },
         {
+          "command": "aidlc.runUnitPipeline",
+          "when": "view == aidlcExplorer && viewItem =~ /^unit:(?!complete)/",
+          "group": "inline@1"
+        },
+        {
           "command": "aidlc.approveArtifact",
           "when": "view == aidlcExplorer && viewItem =~ /^stage:awaiting_approval/",
           "group": "inline@1"
@@ -400,6 +411,16 @@
           "type": "number",
           "default": 600,
           "description": "Abort a 'claudeCode' generation after this many seconds so it can't hang indefinitely. Subagent-assisted runs need more headroom."
+        },
+        "aidlc.monitor.intervalMinutes": {
+          "type": "number",
+          "default": 5,
+          "description": "Passive monitoring interval: silently refresh dev activity (commits/PRs) and pull Jira statuses every N minutes. 0 disables."
+        },
+        "aidlc.monitor.pullJira": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include a silent Jira status pull in each monitoring tick."
         },
         "aidlc.test.command": {
           "type": "string",

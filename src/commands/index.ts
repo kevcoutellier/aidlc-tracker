@@ -80,6 +80,29 @@ export function registerCommands(
       void resetStage(services, stageId, unitId);
     }
   });
+  register("aidlc.runUnitPipeline", async (arg: unknown) => {
+    let unitId =
+      arg && typeof arg === "object" && "unitId" in arg
+        ? (arg as { unitId?: string }).unitId
+        : undefined;
+    if (!unitId) {
+      const units = (services.store.state?.units ?? []).filter(
+        (u) => u.status !== "complete"
+      );
+      const pick = await vscode.window.showQuickPick(
+        units.map((u) => ({
+          label: u.title,
+          description: u.jiraKey,
+          id: u.id,
+        })),
+        { title: "Run Unit Pipeline (auto-approve)", placeHolder: "Pick a unit of work" }
+      );
+      unitId = pick?.id;
+    }
+    if (unitId) {
+      void orchestrator.runUnitPipeline(unitId);
+    }
+  });
   register("aidlc.setAnthropicKey", () => setAnthropicKey(services));
   register("aidlc.setAnthropicToken", () => setAnthropicToken(services));
   register("aidlc.setClaudeCodeToken", () => setClaudeCodeToken(services));
@@ -124,6 +147,32 @@ async function refreshAll(services: AidlcServices): Promise<void> {
     services.refreshJiraStatus(),
     refreshDevActivity(services, false),
   ]);
+}
+
+/**
+ * One passive-monitoring tick: refresh dev activity and pull Jira statuses,
+ * silently (no prompts, no toasts) — the views update through their stores.
+ */
+export async function monitorTick(services: AidlcServices): Promise<void> {
+  await refreshDevActivity(services, false).catch(() => undefined);
+  const { context, store, writer, reload } = services;
+  if (
+    !store.state ||
+    store.state.units.length === 0 ||
+    !vscode.workspace.getConfiguration("aidlc").get<boolean>("monitor.pullJira", true)
+  ) {
+    return;
+  }
+  try {
+    const sync = await createJiraSync(context);
+    if (await sync.isConfigured()) {
+      await sync.pull(store.state);
+      await writer.save(store.state);
+      await reload();
+    }
+  } catch {
+    /* silent by design — next tick retries */
+  }
 }
 
 /** Collect commits/branches/PRs for the tracked units into the dev store. */

@@ -333,6 +333,18 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 }
 .td-count small { color: var(--faint); }
 
+.td-run { width: 34px; text-align: center; }
+.run-all {
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--faint);
+  padding: 2px 5px;
+  border-radius: 2px;
+  visibility: hidden;
+}
+.unit-row:hover .run-all { visibility: visible; }
+.run-all:hover { color: var(--st-in_progress); background: var(--hover); }
+
 .jira-chip {
   font-family: var(--mono);
   font-size: 0.7rem;

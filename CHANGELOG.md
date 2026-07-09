@@ -28,6 +28,16 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Passive monitoring** — `aidlc.monitor.intervalMinutes` (default 5) silently
+  refreshes dev activity (commits/PRs/checks) and pulls Jira statuses on an
+  interval, so the console mirrors development that happens entirely outside
+  the plugin (agent sessions, bot PRs, auto-merge, CI). 0 disables;
+  `aidlc.monitor.pullJira` opts the Jira pull out.
+- **Auto-approve unit pipeline** — "Run Unit Pipeline (auto-approve)" (tree ▶▶,
+  dashboard row hover, palette) runs every remaining stage of a unit
+  sequentially without per-stage approval gates (code-gen confirmation
+  included), stopping on the first non-complete stage. Fully audited
+  (`unit.pipeline.start/complete/aborted`).
 - **Append-only audit log** (`aidlc-docs/audit.md`, per awslabs/aidlc-workflows)
   — every significant event is journaled with an ISO-8601 timestamp: generation
   start/complete/error/cancel (with model, turns, cost, subagents), approvals,
