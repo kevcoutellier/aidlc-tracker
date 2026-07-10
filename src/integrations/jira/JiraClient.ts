@@ -57,6 +57,19 @@ export function adfToText(node: unknown): string {
   }
 }
 
+export interface JiraTransition {
+  id: string;
+  name?: string;
+  to?: { name?: string; statusCategory?: { key?: string } };
+}
+
+/** The transition that lands in the "done" status category, if any. */
+export function pickDoneTransition(
+  transitions: JiraTransition[]
+): JiraTransition | undefined {
+  return transitions.find((t) => t.to?.statusCategory?.key === "done");
+}
+
 export class JiraError extends Error {
   constructor(
     message: string,
@@ -155,6 +168,20 @@ export class JiraClient {
       "GET",
       `/rest/api/3/issue/${key}?fields=summary,status`
     );
+  }
+
+  async listTransitions(key: string): Promise<JiraTransition[]> {
+    const res = await this.request<{ transitions?: JiraTransition[] }>(
+      "GET",
+      `/rest/api/3/issue/${key}/transitions`
+    );
+    return res.transitions ?? [];
+  }
+
+  async doTransition(key: string, transitionId: string): Promise<void> {
+    await this.request<void>("POST", `/rest/api/3/issue/${key}/transitions`, {
+      transition: { id: transitionId },
+    });
   }
 
   /** Run a JQL search. Uses the enhanced endpoint, falling back to the classic. */

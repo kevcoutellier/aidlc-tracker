@@ -7,6 +7,7 @@ import {
   JiraSearchIssue,
   adf,
   adfToText,
+  pickDoneTransition,
 } from "./JiraClient";
 import { PhaseId, ProjectState, UnitOfWork } from "../../model/types";
 import {
@@ -130,6 +131,31 @@ export class JiraSync implements TrackerSync {
       this.configuredJql("jira.requirementsJql") ||
       `project = ${this.config.projectKey} AND issuetype in (Epic, "Épopée") ORDER BY key ASC`;
     return this.importIssues(jql, "Requirements — imported from Jira");
+  }
+
+  /**
+   * Move an issue to the "done" status category (workflow-agnostic: picks
+   * whichever available transition lands in that category). Idempotent.
+   */
+  async transitionToDone(
+    key: string
+  ): Promise<
+    | { outcome: "transitioned"; statusName?: string }
+    | { outcome: "already-done"; statusName?: string }
+    | { outcome: "no-done-transition" }
+  > {
+    this.assertClient();
+    const client = this.client!;
+    const issue = await client.getIssue(key);
+    if (issue.fields.status?.statusCategory?.key === "done") {
+      return { outcome: "already-done", statusName: issue.fields.status?.name };
+    }
+    const transition = pickDoneTransition(await client.listTransitions(key));
+    if (!transition) {
+      return { outcome: "no-done-transition" };
+    }
+    await client.doTransition(key, transition.id);
+    return { outcome: "transitioned", statusName: transition.to?.name };
   }
 
   /**

@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { JiraClient, JiraConfig, adf } from "../../src/integrations/jira/JiraClient";
+import {
+  JiraClient,
+  JiraConfig,
+  adf,
+  pickDoneTransition,
+} from "../../src/integrations/jira/JiraClient";
 
 const config: JiraConfig = {
   baseUrl: "https://example.atlassian.net/",
@@ -28,6 +33,18 @@ test("adf never emits an empty text node", () => {
     content: Array<{ content: Array<{ text: string }> }>;
   };
   assert.ok(doc.content[0].content[0].text.length >= 1);
+});
+
+test("pickDoneTransition selects by status category, not by name", () => {
+  const transitions = [
+    { id: "11", name: "Start", to: { name: "In Progress", statusCategory: { key: "indeterminate" } } },
+    { id: "31", name: "Terminer", to: { name: "Terminé", statusCategory: { key: "done" } } },
+    { id: "41", name: "Close as done", to: { name: "Closed", statusCategory: { key: "done" } } },
+  ];
+  // First done-category transition wins — works on FR/EN/custom workflows.
+  assert.equal(pickDoneTransition(transitions)?.id, "31");
+  assert.equal(pickDoneTransition([transitions[0]]), undefined);
+  assert.equal(pickDoneTransition([]), undefined);
 });
 
 test("baseFields sets project, issue type and an ADF description", () => {

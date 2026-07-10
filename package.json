@@ -506,6 +506,11 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically push local state to Jira whenever it changes."
+        },
+        "aidlc.jira.autoTransition": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a unit's PR is detected as merged, automatically transition its linked Jira issue to the done status category. Each transition is audited and announced."
         }
       }
     }

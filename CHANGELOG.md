@@ -33,6 +33,12 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Automatic Jira transitions** — when monitoring (or a manual dev refresh)
+  detects a merged PR for a unit, its linked Jira issue is transitioned to the
+  done status category (workflow-agnostic, FR/EN safe: picked by category, not
+  name). Gated by `aidlc.jira.autoTransition` (default on), deduplicated per
+  session, audited (`jira.transition[.error]`) and announced. PR↔key matching
+  is now word-bounded so NUM-12 can never close on NUM-120's PR.
 - **Passive monitoring** — `aidlc.monitor.intervalMinutes` (default 5) silently
   refreshes dev activity (commits/PRs/checks) and pulls Jira statuses on an
   interval, so the console mirrors development that happens entirely outside

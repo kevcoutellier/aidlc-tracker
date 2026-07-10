@@ -59,13 +59,19 @@ export function prState(raw: RawPull): PrState {
   return raw.state === "open" ? "open" : "closed";
 }
 
-/** PRs whose title or head branch mentions the Jira key (case-insensitive). */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * PRs whose title or head branch mentions the Jira key (case-insensitive),
+ * bounded so NUM-12 does NOT match NUM-120 — matches feed automatic Jira
+ * transitions, where a superset match would close the wrong issue.
+ */
 export function matchPullsToKey(pulls: RawPull[], jiraKey: string): RawPull[] {
-  const needle = jiraKey.toLowerCase();
+  const re = new RegExp(`${escapeRegex(jiraKey)}(?!\\d)`, "i");
   return pulls.filter(
-    (p) =>
-      (p.title ?? "").toLowerCase().includes(needle) ||
-      (p.head?.ref ?? "").toLowerCase().includes(needle)
+    (p) => re.test(p.title ?? "") || re.test(p.head?.ref ?? "")
   );
 }
 

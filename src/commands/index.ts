@@ -189,6 +189,83 @@ export async function refreshDevActivity(
   if (interactive && activity.error) {
     void vscode.window.showWarningMessage(`Dev activity: ${activity.error}`);
   }
+  await autoTransitionMergedUnits(services).catch(() => undefined);
+}
+
+/**
+ * Issues already handled this session (transitioned, already done, or failed) —
+ * prevents re-hitting Jira every monitoring tick for the same merged PR.
+ */
+const transitionHandled = new Set<string>();
+
+/**
+ * Auto-transition: a unit whose PR merged gets its Jira issue moved to the
+ * "done" status category. Gated by `aidlc.jira.autoTransition`; word-bounded
+ * PR↔key matching upstream ensures NUM-12 never closes on NUM-120's PR.
+ */
+async function autoTransitionMergedUnits(
+  services: AidlcServices
+): Promise<void> {
+  const { context, store, writer, reload, audit } = services;
+  const cfg = vscode.workspace.getConfiguration("aidlc");
+  if (!cfg.get<boolean>("jira.autoTransition", true)) {
+    return;
+  }
+  const state = store.state;
+  const dev = services.devStore.activity;
+  if (!state || !dev) {
+    return;
+  }
+  const candidates = state.units.filter(
+    (u) =>
+      u.jiraKey &&
+      !transitionHandled.has(u.jiraKey) &&
+      (dev.byUnit[u.id]?.prs ?? []).some((p) => p.state === "merged")
+  );
+  if (candidates.length === 0) {
+    return;
+  }
+  const sync = await createJiraSync(context);
+  if (!(await sync.isConfigured())) {
+    return;
+  }
+
+  const moved: string[] = [];
+  for (const unit of candidates) {
+    const key = unit.jiraKey!;
+    transitionHandled.add(key);
+    try {
+      const res = await sync.transitionToDone(key);
+      if (res.outcome === "transitioned") {
+        moved.push(key);
+        unit.jiraStatus = res.statusName ?? "Done";
+        void audit.append("jira.transition", {
+          issue: key,
+          unit: unit.id,
+          to: res.statusName,
+          reason: "merged PR",
+        });
+      } else if (res.outcome === "no-done-transition") {
+        void audit.append("jira.transition.error", {
+          issue: key,
+          error: "no transition to a done-category status available",
+        });
+      }
+    } catch (err) {
+      void audit.append("jira.transition.error", {
+        issue: key,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  if (moved.length > 0) {
+    await writer.save(state);
+    await reload();
+    void vscode.window.showInformationMessage(
+      `Jira: ${moved.join(", ")} → Done (merged PR${moved.length > 1 ? "s" : ""}).`
+    );
+  }
 }
 
 /** Toggle the opt-in AI-DLC extensions (security/resiliency/PBT baselines). */

@@ -40,8 +40,12 @@ test("matchPullsToKey matches title or head branch, case-insensitive", () => {
     { number: 4, title: "unrelated" },
   ];
   const matched = matchPullsToKey(pulls, "NUM-12").map((p) => p.number);
-  // NUM-120 contains "NUM-12" as a substring — acceptable superset for v1.
-  assert.deepEqual(matched, [1, 2, 3]);
+  // Word-bounded: NUM-120 must NOT match NUM-12 (matches drive Jira transitions).
+  assert.deepEqual(matched, [1, 2]);
+  assert.deepEqual(
+    matchPullsToKey(pulls, "NUM-120").map((p) => p.number),
+    [3]
+  );
   assert.deepEqual(matchPullsToKey(pulls, "NUM-99"), []);
 });
 
