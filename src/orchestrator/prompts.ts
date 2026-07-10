@@ -58,6 +58,21 @@ const INSTRUCTIONS: Record<string, string> = {
   monitoring: `Produce a **Monitoring & Observability** plan: key metrics/SLOs, logging and tracing, dashboards, and alerting rules with thresholds.`,
 };
 
+/**
+ * Extract the artifact from model output: drop any conversational preamble
+ * before the first markdown heading. Returns null when the output contains no
+ * heading at all — i.e. the model spent its budget exploring and never wrote
+ * the document; such output must never be saved as an artifact.
+ */
+export function stripToHeading(text: string): string | null {
+  const t = text.trim();
+  if (t.startsWith("#")) {
+    return t;
+  }
+  const m = t.match(/\n#{1,6}\s/);
+  return m && m.index !== undefined ? t.slice(m.index + 1).trim() : null;
+}
+
 /** Instruction text for a stage, or a generic fallback. */
 export function instructionFor(stageId: string): string {
   return (

@@ -33,6 +33,17 @@ export class DevActivityService {
 
     const activity: DevActivity = { byUnit: {}, fetchedAt };
 
+    activity.repoBranch =
+      (await git(["branch", "--show-current"], cwd).catch(() => "")) ||
+      undefined;
+    const behindRaw = await git(
+      ["rev-list", "--count", "HEAD..origin/main"],
+      cwd
+    ).catch(() => undefined);
+    if (behindRaw !== undefined && Number.isFinite(parseInt(behindRaw, 10))) {
+      activity.behindMain = parseInt(behindRaw, 10);
+    }
+
     // Local git is the baseline — works with no remote at all.
     const keyed = units.filter((u) => u.jiraKey);
     for (const unit of keyed) {
@@ -83,8 +94,10 @@ export class DevActivityService {
   private async localInfo(cwd: string, key: string): Promise<UnitDevInfo> {
     const info: UnitDevInfo = { commitCount: 0, prs: [] };
     try {
+      // --all: units are developed on feature branches/worktrees — the main
+      // checkout's HEAD alone would miss most of their commits.
       const log = await git(
-        ["log", "--oneline", "-i", `--grep=${key}`, "-n", "100"],
+        ["log", "--all", "--oneline", "-i", `--grep=${key}`, "-n", "200"],
         cwd
       );
       const lines = log ? log.split("\n").filter(Boolean) : [];

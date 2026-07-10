@@ -123,6 +123,8 @@ export interface DashboardModel {
   jiraBaseUrl?: string;
   /** Repo + freshness of the dev-activity snapshot, when available. */
   devRepo?: string;
+  devBranch?: string;
+  devBehindMain?: number;
   devFetchedAt?: string;
   devError?: string;
 }
@@ -369,6 +371,8 @@ export function buildDashboardModel(
     devRepo: options.dev?.repo
       ? `${options.dev.repo.owner}/${options.dev.repo.name}`
       : undefined,
+    devBranch: options.dev?.repoBranch,
+    devBehindMain: options.dev?.behindMain,
     devFetchedAt: options.dev?.fetchedAt,
     devError: options.dev?.error,
   };

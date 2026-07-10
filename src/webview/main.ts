@@ -441,11 +441,18 @@ function constructionPanel(phase: DashboardPhase, model: DashboardModel): string
       </table>`
     : `<p class="empty-hint">No units yet — pull them from Jira or add one manually.</p>`;
 
+  const branchBit = model.devBranch
+    ? ` · ⎇ ${esc(model.devBranch)}${
+        model.devBehindMain ? ` (−${model.devBehindMain} vs main)` : ""
+      }`
+    : "";
   const devMeta = model.devError
-    ? `<span class="dev-status warn" title="${esc(model.devError)}">dev: partial</span>`
+    ? `<span class="dev-status warn" title="${esc(model.devError)}">dev: partial${branchBit}</span>`
     : model.devRepo
-      ? `<span class="dev-status">dev: ${esc(model.devRepo)}</span>`
-      : `<span class="dev-status">dev: local git only</span>`;
+      ? `<span class="dev-status${model.devBehindMain ? " warn" : ""}" title="workspace checkout">dev: ${esc(
+          model.devRepo
+        )}${branchBit}</span>`
+      : `<span class="dev-status">dev: local git only${branchBit}</span>`;
 
   return `<section class="panel${phase.isCurrent ? " current" : ""}">
     <header class="panel-head">

@@ -5,6 +5,15 @@ All notable changes to the AIDLC Tracker extension are documented here.
 ## [0.0.1] - Unreleased
 
 ### Fixed
+- **Narration can no longer be saved as an artifact.** A generation whose
+  output contains no markdown heading (a budget-exhausted run that only
+  streamed its exploration narration) is now blocked with guidance to raise
+  `claudeCode.maxTurns`/`timeoutSeconds`, instead of writing the narration to
+  the artifact file.
+- **Branch awareness.** Generations record the workspace branch (audit + run
+  history) and warn when the checkout is behind origin/main; the dashboard's
+  Construction header shows `⎇ branch (−N vs main)`; per-unit commit counting
+  now scans all branches/worktrees (`git log --all`), not just HEAD.
 - **Monorepo test totals.** The test-output parser now aggregates EVERY
   framework summary in the output (one Vitest/Jest/TAP/pytest summary per
   workspace under `pnpm -r test`) instead of reading only the first, and

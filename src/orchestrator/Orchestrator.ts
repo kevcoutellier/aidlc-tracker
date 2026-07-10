@@ -11,7 +11,10 @@ import {
   SYSTEM_PREAMBLE,
   autonomyDirective,
   instructionFor,
+  stripToHeading,
 } from "./prompts";
+import { git } from "../core/gitExec";
+import { workspaceRoot } from "../core/paths";
 import { directivesFor } from "../model/extensions";
 import {
   artifactPath,
@@ -36,18 +39,26 @@ interface StageRef {
 
 const MAX_ARTIFACT_CONTEXT_CHARS = 6000;
 
-/**
- * Drop any conversational preamble an agent may emit before the document (e.g.
- * "I have enough grounding. Producing the artifact.") by starting the artifact
- * at its first markdown heading.
- */
-function stripToHeading(text: string): string {
-  const t = text.trim();
-  if (t.startsWith("#")) {
-    return t;
+/** Current branch + commits behind origin/main of the workspace checkout. */
+async function checkoutInfo(): Promise<{ branch?: string; behindMain?: number }> {
+  const root = workspaceRoot();
+  if (!root) {
+    return {};
   }
-  const m = t.match(/\n#{1,6}\s/);
-  return m && m.index !== undefined ? t.slice(m.index + 1).trim() : t;
+  const cwd = root.uri.fsPath;
+  const branch = await git(["branch", "--show-current"], cwd).catch(
+    () => undefined
+  );
+  const behindRaw = await git(
+    ["rev-list", "--count", "HEAD..origin/main"],
+    cwd
+  ).catch(() => undefined);
+  const behindMain =
+    behindRaw !== undefined ? parseInt(behindRaw, 10) : undefined;
+  return {
+    branch: branch || undefined,
+    behindMain: Number.isFinite(behindMain) ? behindMain : undefined,
+  };
 }
 
 /**
@@ -204,9 +215,26 @@ export class Orchestrator {
 
       this.setStatus(stageId, unitId, "in_progress");
       await this.services.writer.save(state);
+
+      const checkout = await checkoutInfo();
+      if (
+        checkout.behindMain !== undefined &&
+        checkout.behindMain > 0 &&
+        !opts?.autoApprove
+      ) {
+        void vscode.window.showWarningMessage(
+          `Generating from "${checkout.branch ?? "detached HEAD"}", ` +
+            `${checkout.behindMain} commit(s) behind origin/main — the analysis reflects that state.`
+        );
+      }
       void this.services.audit.append(
         "stage.generate.start",
-        { stage: def.name, unit: unitId },
+        {
+          stage: def.name,
+          unit: unitId,
+          branch: checkout.branch,
+          behindMain: checkout.behindMain,
+        },
         guidance
       );
 
@@ -245,7 +273,7 @@ export class Orchestrator {
           })
       );
 
-      this.recordRun(stageId, unitId, startedAt, trace);
+      this.recordRun(stageId, unitId, startedAt, trace, checkout.branch);
       void this.services.audit.append("stage.generate.complete", {
         stage: def.name,
         unit: unitId,
@@ -255,17 +283,26 @@ export class Orchestrator {
         subagents: trace?.agents.join(", ") || undefined,
       });
 
-      if (!content || content.trim().length === 0) {
+      // Never accept output without a markdown heading — that's exploration
+      // narration from a run that exhausted its budget, not an artifact.
+      const doc = content ? stripToHeading(content) : null;
+      if (!doc) {
         this.setStatus(stageId, unitId, "blocked");
         await this.services.writer.save(state);
         await this.services.reload();
+        void this.services.audit.append("stage.generate.error", {
+          stage: def.name,
+          unit: unitId,
+          error: "no artifact produced (output has no markdown heading)",
+        });
         void vscode.window.showErrorMessage(
-          `${def.name}: the model returned no content.`
+          `${def.name}: the model spent its budget exploring and produced no artifact. ` +
+            `Raise 'aidlc.claudeCode.maxTurns' / 'aidlc.claudeCode.timeoutSeconds' and rerun.`
         );
         return;
       }
 
-      await this.services.writer.writeArtifact(rel, stripToHeading(content));
+      await this.services.writer.writeArtifact(rel, doc);
 
       const requireApproval = opts?.autoApprove
         ? false
@@ -479,12 +516,14 @@ export class Orchestrator {
     stageId: string,
     unitId: string | undefined,
     startedAt: string,
-    trace: GenerationTrace | undefined
+    trace: GenerationTrace | undefined,
+    branch?: string
   ): void {
     const record = {
       stageId,
       unitId,
       at: startedAt,
+      branch,
       model: trace?.model,
       turns: trace?.turns,
       durationMs: trace?.durationMs,

@@ -74,6 +74,8 @@ export interface RunRecord {
   unitId?: string;
   /** ISO-8601 start timestamp. */
   at: string;
+  /** Git branch the workspace was on when generating. */
+  branch?: string;
   model?: string;
   turns?: number;
   durationMs?: number;

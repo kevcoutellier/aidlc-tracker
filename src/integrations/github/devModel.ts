@@ -24,6 +24,10 @@ export interface UnitDevInfo {
 
 export interface DevActivity {
   repo?: { owner: string; name: string };
+  /** Branch currently checked out in the workspace. */
+  repoBranch?: string;
+  /** Commits the checkout is behind origin/main, when derivable. */
+  behindMain?: number;
   byUnit: Record<string, UnitDevInfo>;
   fetchedAt: string;
   error?: string;
