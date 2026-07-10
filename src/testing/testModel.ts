@@ -1,8 +1,11 @@
 /**
  * Pure (vscode-free) parsing of test-runner output into the quantified metrics
  * the AI-DLC Build & Test stage tracks: totals, pass/fail/skipped, coverage.
- * Recognizes node:test (TAP), Jest, Vitest, pytest and Mocha summaries, with a
- * graceful fallback to exit-code-only when no summary is found.
+ * Recognizes node:test (TAP), Jest, Vitest, pytest and Mocha summaries — and
+ * AGGREGATES every summary found, so monorepo runs (e.g. `pnpm -r test`
+ * printing one Vitest summary per workspace) report whole-suite totals rather
+ * than the first package's. Falls back to exit-code-only when no summary is
+ * found.
  */
 
 export interface ParsedTestSummary {
@@ -13,80 +16,126 @@ export interface ParsedTestSummary {
   coveragePct?: number;
 }
 
-function toInt(v: string | undefined): number | undefined {
-  return v === undefined ? undefined : parseInt(v, 10);
+interface Counts {
+  passed: number;
+  failed: number;
+  skipped: number;
+  total: number;
 }
+
+function n(v: string | undefined): number {
+  return v === undefined ? 0 : parseInt(v, 10);
+}
+
+/**
+ * Strict per-framework matchers (safe to sum across frameworks in the same
+ * output). Mocha's loose "N passing" pattern is handled separately as a
+ * fallback to avoid double counting.
+ */
+const MATCHERS: Array<{
+  regex: RegExp;
+  extract: (m: RegExpMatchArray) => Counts;
+}> = [
+  {
+    // node:test / TAP block: "# tests 41 … # pass 40 … # fail 1 [… # skipped 0]"
+    regex:
+      /^# tests (\d+)[\s\S]*?^# pass (\d+)[\s\S]*?^# fail (\d+)(?:[\s\S]*?^# skipped (\d+))?/gm,
+    extract: (m) => ({
+      total: n(m[1]),
+      passed: n(m[2]),
+      failed: n(m[3]),
+      skipped: n(m[4]),
+    }),
+  },
+  {
+    // Jest: "Tests:       1 failed, 2 skipped, 5 passed, 8 total"
+    regex:
+      /Tests:\s+(?:(\d+) failed[,\s]*)?(?:(\d+) skipped[,\s]*)?(?:(\d+) todo[,\s]*)?(?:(\d+) passed[,\s]*)?(\d+) total/g,
+    extract: (m) => ({
+      failed: n(m[1]),
+      skipped: n(m[2]),
+      passed: n(m[4]),
+      total: n(m[5]),
+    }),
+  },
+  {
+    // Vitest: "Tests  3 failed | 42 passed | 1 skipped (46)"
+    regex:
+      /Tests\s+(?:(\d+) failed \| )?(\d+) passed(?: \| (\d+) skipped)?\s*\((\d+)\)/g,
+    extract: (m) => ({
+      failed: n(m[1]),
+      passed: n(m[2]),
+      skipped: n(m[3]),
+      total: n(m[4]),
+    }),
+  },
+  {
+    // pytest: "===== 5 passed, 1 failed, 2 skipped in 1.23s ====="
+    regex: /=+\s+((?:\d+ \w+(?:, )?)+)\s+in\s+[\d.]+s\s+=+/g,
+    extract: (m) => {
+      const seg = m[1];
+      const passed = n(/(\d+) passed/.exec(seg)?.[1]);
+      const failed = n(/(\d+) failed/.exec(seg)?.[1]);
+      const skipped = n(/(\d+) skipped/.exec(seg)?.[1]);
+      return { passed, failed, skipped, total: passed + failed + skipped };
+    },
+  },
+];
 
 export function parseTestOutput(out: string): ParsedTestSummary {
   const s: ParsedTestSummary = {};
+  const acc: Counts = { passed: 0, failed: 0, skipped: 0, total: 0 };
+  let found = false;
 
-  // node:test / TAP: "# tests 41" "# pass 41" "# fail 0" "# skipped 0"
-  const tapTests = /^# tests (\d+)/m.exec(out);
-  if (tapTests) {
-    s.total = toInt(tapTests[1]);
-    s.passed = toInt(/^# pass (\d+)/m.exec(out)?.[1]);
-    s.failed = toInt(/^# fail (\d+)/m.exec(out)?.[1]);
-    s.skipped = toInt(/^# skipped (\d+)/m.exec(out)?.[1]);
-  }
-
-  // Jest: "Tests:       1 failed, 2 skipped, 5 passed, 8 total"
-  if (s.total === undefined) {
-    const jest =
-      /Tests:\s+(?:(\d+) failed[,\s]*)?(?:(\d+) skipped[,\s]*)?(?:(\d+) todo[,\s]*)?(?:(\d+) passed[,\s]*)?(\d+) total/.exec(
-        out
-      );
-    if (jest) {
-      s.failed = toInt(jest[1]) ?? 0;
-      s.skipped = toInt(jest[2]) ?? 0;
-      s.passed = toInt(jest[4]) ?? 0;
-      s.total = toInt(jest[5]);
+  for (const { regex, extract } of MATCHERS) {
+    for (const m of out.matchAll(regex)) {
+      const c = extract(m);
+      if (c.total === 0 && c.passed + c.failed + c.skipped === 0) {
+        continue;
+      }
+      found = true;
+      acc.passed += c.passed;
+      acc.failed += c.failed;
+      acc.skipped += c.skipped;
+      acc.total += c.total;
     }
   }
 
-  // Vitest: "Tests  3 failed | 42 passed | 1 skipped (46)"
-  if (s.total === undefined) {
-    const vitest =
-      /Tests\s+(?:(\d+) failed \| )?(\d+) passed(?: \| (\d+) skipped)?\s*\((\d+)\)/.exec(
-        out
-      );
-    if (vitest) {
-      s.failed = toInt(vitest[1]) ?? 0;
-      s.passed = toInt(vitest[2]);
-      s.skipped = toInt(vitest[3]) ?? 0;
-      s.total = toInt(vitest[4]);
+  // Mocha fallback ("12 passing" / "2 failing" / "1 pending") — loose pattern,
+  // only trusted when no strict framework summary matched.
+  if (!found) {
+    const sum = (re: RegExp) =>
+      [...out.matchAll(re)].reduce((a, m) => a + n(m[1]), 0);
+    const passing = sum(/(\d+) passing/g);
+    if ([...out.matchAll(/(\d+) passing/g)].length > 0) {
+      found = true;
+      acc.passed = passing;
+      acc.failed = sum(/(\d+) failing/g);
+      acc.skipped = sum(/(\d+) pending/g);
+      acc.total = acc.passed + acc.failed + acc.skipped;
     }
   }
 
-  // pytest: "===== 5 passed, 1 failed, 2 skipped in 1.23s ====="
-  if (s.total === undefined) {
-    const pytest =
-      /=+\s+(?=[^=]*(?:passed|failed))([^=]*?)\s+in\s+[\d.]+s\s+=+/.exec(out);
-    if (pytest) {
-      const seg = pytest[1];
-      s.passed = toInt(/(\d+) passed/.exec(seg)?.[1]) ?? 0;
-      s.failed = toInt(/(\d+) failed/.exec(seg)?.[1]) ?? 0;
-      s.skipped = toInt(/(\d+) skipped/.exec(seg)?.[1]) ?? 0;
-      s.total = s.passed + s.failed + s.skipped;
-    }
+  if (found) {
+    s.passed = acc.passed;
+    s.failed = acc.failed;
+    s.skipped = acc.skipped;
+    s.total = acc.total;
   }
 
-  // Mocha: "  12 passing (34ms)" / "  2 failing" / "  1 pending"
-  if (s.total === undefined) {
-    const passing = /(\d+) passing/.exec(out);
-    if (passing) {
-      s.passed = toInt(passing[1]);
-      s.failed = toInt(/(\d+) failing/.exec(out)?.[1]) ?? 0;
-      s.skipped = toInt(/(\d+) pending/.exec(out)?.[1]) ?? 0;
-      s.total = (s.passed ?? 0) + s.failed + s.skipped;
+  // Coverage — istanbul/c8 "All files | 85.3 | …" tables (averaged across
+  // workspaces) or a generic "Coverage: 85%" line.
+  const tables = [...out.matchAll(/All files[^|]*\|\s*([\d.]+)/g)].map((m) =>
+    parseFloat(m[1])
+  );
+  if (tables.length > 0) {
+    s.coveragePct =
+      Math.round((tables.reduce((a, b) => a + b, 0) / tables.length) * 10) / 10;
+  } else {
+    const generic = /[Cc]overage[^\d%]*([\d.]+)\s*%/.exec(out);
+    if (generic) {
+      s.coveragePct = parseFloat(generic[1]);
     }
-  }
-
-  // Coverage — istanbul/c8 table ("All files | 85.3 | …") or "Coverage: 85%".
-  const istanbul = /All files[^|]*\|\s*([\d.]+)/.exec(out);
-  const genericCov = /[Cc]overage[^\d%]*([\d.]+)\s*%/.exec(out);
-  const cov = istanbul?.[1] ?? genericCov?.[1];
-  if (cov !== undefined) {
-    s.coveragePct = parseFloat(cov);
   }
 
   return s;

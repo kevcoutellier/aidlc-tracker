@@ -53,6 +53,36 @@ test("empty output parses to nothing", () => {
   assert.deepEqual(parseTestOutput("no summary here"), {});
 });
 
+test("aggregates multiple vitest summaries (pnpm -r monorepo run)", () => {
+  const out = [
+    "packages/db test: Tests  120 passed (120)",
+    "packages/llm-gateway test: Tests  2 failed | 300 passed | 4 skipped (306)",
+    "apps/web test: Tests  410 passed (410)",
+    "services/agents-service test: Tests  64 passed (64)",
+  ].join("\n");
+  const s = parseTestOutput(out);
+  assert.equal(s.total, 900);
+  assert.equal(s.passed, 894);
+  assert.equal(s.failed, 2);
+  assert.equal(s.skipped, 4);
+});
+
+test("sums across mixed frameworks in one output", () => {
+  const out =
+    "Tests  10 passed (10)\n" + // vitest workspace
+    "Tests:       1 failed, 4 passed, 5 total"; // jest workspace
+  const s = parseTestOutput(out);
+  assert.equal(s.total, 15);
+  assert.equal(s.passed, 14);
+  assert.equal(s.failed, 1);
+});
+
+test("averages coverage across multiple istanbul tables", () => {
+  const out =
+    "Tests  5 passed (5)\nAll files | 80.0 |\nTests  5 passed (5)\nAll files | 90.5 |";
+  assert.equal(parseTestOutput(out).coveragePct, 85.3);
+});
+
 test("testRunOk: exit 0 wins; else zero failures with a summary", () => {
   assert.equal(testRunOk(0, {}), true);
   assert.equal(testRunOk(1, {}), false);

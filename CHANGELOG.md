@@ -5,6 +5,11 @@ All notable changes to the AIDLC Tracker extension are documented here.
 ## [0.0.1] - Unreleased
 
 ### Fixed
+- **Monorepo test totals.** The test-output parser now aggregates EVERY
+  framework summary in the output (one Vitest/Jest/TAP/pytest summary per
+  workspace under `pnpm -r test`) instead of reading only the first, and
+  averages coverage across multiple istanbul tables. Mocha's loose pattern
+  stays a fallback to avoid double counting.
 - **Finished-but-spinning stages recover.** On load, a stage recorded as
   `in_progress` whose artifact already exists on disk is surfaced as
   `awaiting_approval` (the approve action) instead of a stuck spinner.
