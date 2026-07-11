@@ -6,6 +6,7 @@ import {
   SECRET_CLAUDE_CODE_TOKEN,
 } from "../services";
 import { workspaceRoot } from "../core/paths";
+import { resolveClaudeExecutable } from "./claudeLocator";
 
 export type AuthMethod = "apiKey" | "authToken" | "claudeCode";
 
@@ -267,6 +268,13 @@ export class AnthropicClient {
     }
     if (execPath) {
       options.pathToClaudeCodeExecutable = execPath;
+    } else {
+      // The SDK only self-resolves its optional native package; the packaged
+      // .vsix ships without it, so locate the machine's Claude Code install.
+      const resolved = await resolveClaudeExecutable();
+      if (resolved) {
+        options.pathToClaudeCodeExecutable = resolved;
+      }
     }
     // Run the agent in the project workspace, not the editor's process cwd.
     const root = workspaceRoot();

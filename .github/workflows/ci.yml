@@ -46,7 +46,13 @@ jobs:
         run: npm ci
 
       - name: Package extension
-        run: npx @vscode/vsce package --no-dependencies -o aidlc-tracker.vsix
+        run: npm run package:vsix
+
+      # The claudeCode backend dynamically imports the Agent SDK from
+      # node_modules at runtime (esbuild-external) — a .vsix without it ships a
+      # broken subscription backend. Fail the build rather than publish that.
+      - name: Verify the Agent SDK ships in the .vsix
+        run: unzip -l aidlc-tracker.vsix | grep -q "node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs"
 
       - name: Upload .vsix artifact
         uses: actions/upload-artifact@v4

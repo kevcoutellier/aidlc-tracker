@@ -18,6 +18,7 @@ import { TestRunner } from "../testing/TestRunner";
 import { EXTENSIONS } from "../model/extensions";
 import { AnthropicClient } from "../orchestrator/AnthropicClient";
 import { createJiraSync } from "../integrations/jira/JiraSync";
+import { readyForDoneTransition } from "../integrations/github/devModel";
 import { TrackerSync } from "../integrations/TrackerSync";
 
 /** A tree node argument carrying a stage/unit reference (from inline actions). */
@@ -199,9 +200,11 @@ export async function refreshDevActivity(
 const transitionHandled = new Set<string>();
 
 /**
- * Auto-transition: a unit whose PR merged gets its Jira issue moved to the
- * "done" status category. Gated by `aidlc.jira.autoTransition`; word-bounded
- * PR↔key matching upstream ensures NUM-12 never closes on NUM-120's PR.
+ * Auto-transition: a unit moves its Jira issue to the "done" status category
+ * only once its PRs are settled — at least one merged AND none still open (a
+ * story often spans several PRs; the first merge must not close the issue).
+ * Gated by `aidlc.jira.autoTransition`; word-bounded PR↔key matching upstream
+ * ensures NUM-12 never closes on NUM-120's PR.
  */
 async function autoTransitionMergedUnits(
   services: AidlcServices
@@ -220,7 +223,7 @@ async function autoTransitionMergedUnits(
     (u) =>
       u.jiraKey &&
       !transitionHandled.has(u.jiraKey) &&
-      (dev.byUnit[u.id]?.prs ?? []).some((p) => p.state === "merged")
+      readyForDoneTransition(dev.byUnit[u.id]?.prs ?? [])
   );
   if (candidates.length === 0) {
     return;
@@ -243,7 +246,7 @@ async function autoTransitionMergedUnits(
           issue: key,
           unit: unit.id,
           to: res.statusName,
-          reason: "merged PR",
+          reason: "all PRs settled, at least one merged",
         });
       } else if (res.outcome === "no-done-transition") {
         void audit.append("jira.transition.error", {

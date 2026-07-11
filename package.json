@@ -400,7 +400,7 @@
         "aidlc.claudeCode.executablePath": {
           "type": "string",
           "default": "",
-          "description": "Optional path to the Claude Code executable used by the 'claudeCode' auth method. Leave empty to let the Agent SDK resolve it (Claude Code must be installed)."
+          "description": "Optional path to the Claude Code executable used by the 'claudeCode' auth method. Leave empty to auto-detect: the Agent SDK's bundled binary when present, else the machine's Claude Code install (native installer or npm global)."
         },
         "aidlc.claudeCode.maxTurns": {
           "type": "number",
@@ -510,7 +510,7 @@
         "aidlc.jira.autoTransition": {
           "type": "boolean",
           "default": true,
-          "description": "When a unit's PR is detected as merged, automatically transition its linked Jira issue to the done status category. Each transition is audited and announced."
+          "description": "When a unit's PRs are settled — at least one merged and none still open — automatically transition its linked Jira issue to the done status category. Each transition is audited and announced. Disable on projects where one issue spans PRs that don't all mention its key."
         }
       }
     }
@@ -525,7 +525,7 @@
     "compile-tests": "tsc -p ./ --outDir out",
     "pretest": "npm run check-types",
     "test": "npm run compile-tests && node --test \"out/test/unit/**/*.test.js\"",
-    "package:vsix": "vsce package --no-dependencies=false -o aidlc-tracker.vsix"
+    "package:vsix": "vsce package --dependencies -o aidlc-tracker.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
