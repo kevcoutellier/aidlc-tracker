@@ -37,7 +37,8 @@ interface StageRef {
   unitId?: string;
 }
 
-const MAX_ARTIFACT_CONTEXT_CHARS = 6000;
+/** Fallback cap on each prior artifact's contribution to the prompt. */
+const DEFAULT_MAX_ARTIFACT_CONTEXT_CHARS = 6000;
 
 /** Current branch + commits behind origin/main of the workspace checkout. */
 async function checkoutInfo(): Promise<{ branch?: string; behindMain?: number }> {
@@ -70,6 +71,8 @@ async function checkoutInfo(): Promise<{ branch?: string; behindMain?: number }>
 export class Orchestrator {
   private readonly output: vscode.OutputChannel;
   private busy = false;
+  /** Cancels the in-flight generation (dashboard ✕ or the progress toast). */
+  private currentCancel: vscode.CancellationTokenSource | undefined;
 
   constructor(
     private readonly services: AidlcServices,
@@ -174,6 +177,11 @@ export class Orchestrator {
     );
   }
 
+  /** Cancel the generation currently running, if any. */
+  cancelCurrent(): void {
+    this.currentCancel?.cancel();
+  }
+
   /** Generate the artifact for a specific stage and gate it on approval. */
   async runStage(
     stageId: string,
@@ -196,6 +204,8 @@ export class Orchestrator {
     // (e.g. double Run Next Stage) can't both pass the busy check and start
     // concurrent generations.
     this.busy = true;
+    const cts = new vscode.CancellationTokenSource();
+    this.currentCancel = cts;
     try {
       if (!(await this.ensureKey())) {
         return;
@@ -248,11 +258,34 @@ export class Orchestrator {
       let trace: GenerationTrace | undefined;
 
       const cfg = vscode.workspace.getConfiguration("aidlc");
+      const isClaudeCode = this.client.authMethod() === "claudeCode";
       const system =
-        this.client.authMethod() === "claudeCode" &&
-        cfg.get<boolean>("claudeCode.useSubagents", true)
+        isClaudeCode && cfg.get<boolean>("claudeCode.useSubagents", true)
           ? SYSTEM_PREAMBLE + SUBAGENT_DIRECTIVE
           : SYSTEM_PREAMBLE;
+
+      // Surface the run live in the dashboard: budgets, turns, tools, and
+      // subagent Task calls stream into the LiveRunStore as they happen.
+      const live = this.services.liveRun;
+      live.begin({
+        stageId,
+        stageName: def.name,
+        unitId,
+        unitTitle: unitId
+          ? state.units.find((u) => u.id === unitId)?.title
+          : undefined,
+        startedAt: Date.now(),
+        timeoutMs: isClaudeCode
+          ? Math.max(30, cfg.get<number>("claudeCode.timeoutSeconds", 600)) *
+            1000
+          : undefined,
+        maxTurns: isClaudeCode
+          ? cfg.get<number>("claudeCode.maxTurns", 12)
+          : undefined,
+        turns: 0,
+        tools: {},
+        tasks: [],
+      });
 
       const content = await vscode.window.withProgress(
         {
@@ -260,17 +293,59 @@ export class Orchestrator {
           cancellable: true,
           title: `AI-DLC: generating ${def.name}…`,
         },
-        (_progress, token) =>
-          this.client.generate({
+        (_progress, token) => {
+          token.onCancellationRequested(() => cts.cancel());
+          return this.client.generate({
             system,
             user,
-            token,
+            token: cts.token,
             onDelta: (t) => this.output.append(t),
             onActivity: (line) => this.output.appendLine(`\n  ⚙ ${line}`),
+            onEvent: (ev) => {
+              switch (ev.kind) {
+                case "model":
+                  live.update((r) => {
+                    r.model = ev.model;
+                  });
+                  break;
+                case "turn":
+                  live.update((r) => {
+                    r.turns += 1;
+                  });
+                  break;
+                case "tool":
+                  live.update((r) => {
+                    r.tools[ev.name] = (r.tools[ev.name] ?? 0) + 1;
+                    r.lastActivity = ev.line;
+                  });
+                  break;
+                case "task-start":
+                  live.update((r) => {
+                    r.tasks.push({
+                      id: ev.id,
+                      agent: ev.agent,
+                      brief: ev.brief,
+                      startedAt: Date.now(),
+                    });
+                  });
+                  break;
+                case "task-end":
+                  live.update((r) => {
+                    const task = r.tasks.find(
+                      (t) => t.id === ev.id && t.endedAt === undefined
+                    );
+                    if (task) {
+                      task.endedAt = Date.now();
+                    }
+                  });
+                  break;
+              }
+            },
             onTrace: (t) => {
               trace = t;
             },
-          })
+          });
+        }
       );
 
       this.recordRun(stageId, unitId, startedAt, trace, checkout.branch);
@@ -368,6 +443,9 @@ export class Orchestrator {
         );
       }
     } finally {
+      this.services.liveRun.end();
+      this.currentCancel = undefined;
+      cts.dispose();
       this.busy = false;
     }
   }
@@ -613,6 +691,13 @@ export class Orchestrator {
     unitId?: string
   ): Promise<string> {
     const blocks: string[] = [`Project name: ${state.name}`];
+    // Workspace-relative paths of every artifact fed into this context —
+    // surfaced so the agent can point subagent briefs at the full files
+    // (Task subagents see none of this conversation, only their brief).
+    const onDisk: string[] = [];
+    const docsPath = vscode.workspace
+      .getConfiguration("aidlc")
+      .get<string>("docsPath", "aidlc-docs");
 
     // Completed inception artifacts are always relevant context.
     for (const s of stagesForPhase("inception")) {
@@ -621,6 +706,7 @@ export class Orchestrator {
         const text = await this.readArtifact(st.artifactPath);
         if (text) {
           blocks.push(`## ${s.name}\n${text}`);
+          onDisk.push(`${docsPath}/${st.artifactPath}`);
         }
       }
     }
@@ -640,10 +726,19 @@ export class Orchestrator {
             const text = await this.readArtifact(st.artifactPath);
             if (text) {
               blocks.push(`### ${s.name} (this unit)\n${text}`);
+              onDisk.push(`${docsPath}/${st.artifactPath}`);
             }
           }
         }
       }
+    }
+
+    if (onDisk.length > 0) {
+      blocks.push(
+        `## Artifact files on disk\nThe artifacts above are excerpts (long files are truncated). The full files live at these workspace-relative paths — read them when you need the complete text, and copy the relevant ones into every subagent brief:\n${onDisk
+          .map((p) => `- ${p}`)
+          .join("\n")}`
+      );
     }
 
     return blocks.length > 1
@@ -656,9 +751,16 @@ export class Orchestrator {
     if (!uri || !(await exists(uri))) {
       return undefined;
     }
+    const max = Math.max(
+      500,
+      vscode.workspace
+        .getConfiguration("aidlc")
+        .get<number>(
+          "orchestrator.maxArtifactContextChars",
+          DEFAULT_MAX_ARTIFACT_CONTEXT_CHARS
+        )
+    );
     const text = await readText(uri);
-    return text.length > MAX_ARTIFACT_CONTEXT_CHARS
-      ? `${text.slice(0, MAX_ARTIFACT_CONTEXT_CHARS)}\n…(truncated)`
-      : text;
+    return text.length > max ? `${text.slice(0, max)}\n…(truncated)` : text;
   }
 }

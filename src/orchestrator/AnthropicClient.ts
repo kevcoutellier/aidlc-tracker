@@ -60,12 +60,22 @@ export interface GenerationTrace {
   agents: string[];
 }
 
+/** Structured live events streamed while a generation runs. */
+export type LiveEvent =
+  | { kind: "model"; model: string }
+  | { kind: "turn" }
+  | { kind: "tool"; name: string; line: string }
+  | { kind: "task-start"; id: string; agent: string; brief?: string }
+  | { kind: "task-end"; id: string };
+
 export interface GenerateOptions {
   system: string;
   user: string;
   onDelta?: (text: string) => void;
   /** Live one-line activity events, e.g. `Read · src/index.ts`. */
   onActivity?: (line: string) => void;
+  /** Structured live events (turns, tools, subagent start/end) for the UI. */
+  onEvent?: (event: LiveEvent) => void;
   /** Called once with the run's telemetry when generation settles. */
   onTrace?: (trace: GenerationTrace) => void;
   token?: vscode.CancellationToken;
@@ -153,6 +163,8 @@ export class AnthropicClient {
     const model = cfg.get<string>("anthropic.model", "claude-opus-4-8");
     const maxTokens = cfg.get<number>("anthropic.maxTokens", 8192);
 
+    opts.onEvent?.({ kind: "model", model });
+    opts.onEvent?.({ kind: "turn" });
     const startedAt = Date.now();
     const stream = client.messages.stream({
       model,
@@ -299,6 +311,10 @@ export class AnthropicClient {
     };
 
     // Drain the SDK stream, accumulating deltas, telemetry and the result.
+    // Pending Task tool_use ids let us pair each subagent start with the
+    // tool_result that ends it, so the UI can show live subagent activity.
+    const pendingTasks = new Set<string>();
+    let taskSeq = 0;
     const consume = async (): Promise<void> => {
       for await (const message of run as AsyncIterable<AgentMessage>) {
         const m = message;
@@ -316,19 +332,48 @@ export class AnthropicClient {
         } else if (m.type === "system" && m.subtype === "init") {
           if (typeof m.model === "string") {
             trace.model = m.model;
+            opts.onEvent?.({ kind: "model", model: m.model });
           }
         } else if (m.type === "assistant") {
+          opts.onEvent?.({ kind: "turn" });
           for (const block of m.message?.content ?? []) {
             if (block.type === "tool_use" && typeof block.name === "string") {
               trace.tools[block.name] = (trace.tools[block.name] ?? 0) + 1;
+              const line = describeToolUse(block.name, block.input);
+              opts.onEvent?.({ kind: "tool", name: block.name, line });
               if (block.name === "Task") {
-                const sub = (block.input as Record<string, unknown> | undefined)
-                  ?.subagent_type;
-                if (typeof sub === "string" && !trace.agents.includes(sub)) {
-                  trace.agents.push(sub);
+                const input = block.input as
+                  | Record<string, unknown>
+                  | undefined;
+                const sub = input?.subagent_type;
+                const agent = typeof sub === "string" ? sub : "agent";
+                if (!trace.agents.includes(agent)) {
+                  trace.agents.push(agent);
                 }
+                const id =
+                  typeof block.id === "string" ? block.id : `task-${taskSeq++}`;
+                pendingTasks.add(id);
+                opts.onEvent?.({
+                  kind: "task-start",
+                  id,
+                  agent,
+                  brief:
+                    typeof input?.description === "string"
+                      ? input.description
+                      : undefined,
+                });
               }
-              opts.onActivity?.(describeToolUse(block.name, block.input));
+              opts.onActivity?.(line);
+            }
+          }
+        } else if (m.type === "user") {
+          for (const block of m.message?.content ?? []) {
+            if (
+              block.type === "tool_result" &&
+              typeof block.tool_use_id === "string" &&
+              pendingTasks.delete(block.tool_use_id)
+            ) {
+              opts.onEvent?.({ kind: "task-end", id: block.tool_use_id });
             }
           }
         } else if (m.type === "result") {
@@ -424,7 +469,13 @@ interface AgentMessage {
   duration_ms?: number;
   total_cost_usd?: number;
   message?: {
-    content?: Array<{ type?: string; name?: string; input?: unknown }>;
+    content?: Array<{
+      type?: string;
+      name?: string;
+      input?: unknown;
+      id?: string;
+      tool_use_id?: string;
+    }>;
   };
   event?: {
     type?: string;

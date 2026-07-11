@@ -112,6 +112,12 @@
         "icon": "$(rocket)"
       },
       {
+        "command": "aidlc.cancelGeneration",
+        "title": "Cancel Current Generation",
+        "category": "AIDLC",
+        "icon": "$(stop-circle)"
+      },
+      {
         "command": "aidlc.approveArtifact",
         "title": "Approve Artifact",
         "category": "AIDLC",
@@ -462,6 +468,11 @@
           "type": "boolean",
           "default": true,
           "description": "Require explicit human approval of every generated artifact before it is written."
+        },
+        "aidlc.orchestrator.maxArtifactContextChars": {
+          "type": "number",
+          "default": 6000,
+          "description": "Maximum characters of each prior artifact included in the generation context (longer files are truncated; the full paths are always listed for on-demand reads). Raise for long designs — more input tokens per run."
         },
         "aidlc.orchestrator.autonomy": {
           "type": "string",

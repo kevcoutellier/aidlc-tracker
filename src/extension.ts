@@ -11,6 +11,7 @@ import { ClaudeAssetsProvider } from "./views/ClaudeAssetsProvider";
 import { monitorTick, registerCommands } from "./commands";
 import { AidlcServices } from "./services";
 import { AnthropicClient } from "./orchestrator/AnthropicClient";
+import { LiveRunStore } from "./orchestrator/LiveRunStore";
 import { Orchestrator } from "./orchestrator/Orchestrator";
 import { JiraStatusBar } from "./integrations/jira/JiraStatusBar";
 import {
@@ -29,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const jiraStatusBar = new JiraStatusBar(context);
   const devStore = new DevActivityStore();
   const devService = new DevActivityService();
+  const liveRun = new LiveRunStore();
   const audit = new AuditLog();
 
   const reload = async (): Promise<void> => {
@@ -62,6 +64,7 @@ export function activate(context: vscode.ExtensionContext): void {
     jiraStatusBar,
     devStore,
     devService,
+    liveRun,
     audit,
     reload,
     reloadClaude,
@@ -125,6 +128,7 @@ export function activate(context: vscode.ExtensionContext): void {
     store,
     claudeStore,
     devStore,
+    liveRun,
     lifecycleView,
     claudeView,
     docsWatcher,

@@ -19,7 +19,11 @@ Output rules:
 /** Appended to the system prompt when project subagents are enabled. */
 export const SUBAGENT_DIRECTIVE = `
 
-Project subagents: this workspace may define specialized agents under .claude/agents (e.g. security-engineer, compliance-officer, ux-designer, design-reviewer). When the stage's subject clearly matches such an agent's expertise, you MAY delegate a focused sub-analysis or review to it via the Task tool — at most 2 subagent calls per artifact, each with a short, specific brief. Incorporate their findings into the artifact and end the document with a "Contributors" line naming the subagents consulted (or omit the line if none were).`;
+Project subagents: this workspace may define specialized agents under .claude/agents (e.g. security-engineer, compliance-officer, ux-designer, design-reviewer). When the stage's subject clearly matches such an agent's expertise, you MAY delegate a focused sub-analysis or review to it via the Task tool — at most 2 subagent calls per artifact, each with a short, specific brief.
+
+Subagents start with NO context from this conversation: they see only the brief you write. Every brief MUST therefore (1) list the workspace-relative paths of the upstream AI-DLC artifacts relevant to the delegated question — copy them from the "Artifact files on disk" section of the project context — and (2) instruct the subagent to READ those files before analyzing. A brief without artifact paths wastes the delegation.
+
+Incorporate their findings into the artifact and end the document with a "Contributors" line naming the subagents consulted (or omit the line if none were).`;
 
 /** Directive appended per the `aidlc.orchestrator.autonomy` setting. */
 export function autonomyDirective(mode: "assume" | "ask"): string {

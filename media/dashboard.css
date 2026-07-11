@@ -345,6 +345,75 @@ h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.1em; }
 .unit-row:hover .run-all { visibility: visible; }
 .run-all:hover { color: var(--st-in_progress); background: var(--hover); }
 
+/* ── Live run panel ─────────────────────────────────────────────────── */
+.live-run .row { padding-bottom: 4px; }
+.live-metric {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.metric-label {
+  width: 64px;
+  flex: none;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+.live-metric .bar { flex: 1; }
+.metric-val {
+  flex: none;
+  min-width: 78px;
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--faint);
+}
+.live-activity {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0 2px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--faint);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.live-tools { margin-left: auto; flex: none; }
+.live-tasks { padding-top: 4px; }
+.live-tasks .metric-label { display: block; width: auto; padding-bottom: 2px; }
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 2px 8px;
+}
+.task-agent {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--st-in_progress);
+  flex: none;
+}
+.task-brief {
+  font-size: 0.74rem;
+  color: var(--faint);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.task-done {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--st-complete);
+}
+.task-row .pulse { margin-left: auto; flex: none; }
+
 .jira-chip {
   font-family: var(--mono);
   font-size: 0.7rem;

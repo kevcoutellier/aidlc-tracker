@@ -9,6 +9,7 @@ import {
   DevActivityService,
   DevActivityStore,
 } from "./integrations/github/DevActivityService";
+import { LiveRunStore } from "./orchestrator/LiveRunStore";
 
 /** Secret-storage keys. Secrets never live in settings or files. */
 export const SECRET_ANTHROPIC_KEY = "aidlc.anthropicApiKey";
@@ -26,6 +27,7 @@ export interface AidlcServices {
   readonly jiraStatusBar: JiraStatusBar;
   readonly devStore: DevActivityStore;
   readonly devService: DevActivityService;
+  readonly liveRun: LiveRunStore;
   readonly audit: AuditLog;
   /** Re-read AI-DLC state from disk into the store and refresh context keys. */
   reload(): Promise<void>;

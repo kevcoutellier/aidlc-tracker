@@ -51,6 +51,15 @@ All notable changes to the AIDLC Tracker extension are documented here.
   per-stage Reset action, Inception stages can't get stuck spinning.
 
 ### Changed
+- **Subagent briefs must carry the upstream artifacts.** Task subagents start
+  with no conversation context, so a delegation like "audit this unit's NFR
+  design" reached them without the designs. The generation context now ends
+  with an "Artifact files on disk" section (workspace-relative paths of every
+  artifact it included), and the subagent directive requires each brief to
+  copy the relevant paths and instruct the subagent to READ them before
+  analyzing. The per-artifact excerpt cap in the main context is now
+  configurable (`aidlc.orchestrator.maxArtifactContextChars`, default 6000) —
+  the full files are always reachable on disk regardless.
 - **Dashboard redesigned as an operations console** — masthead with phase
   stepper, KPI strip (overall %, units, approvals, blocked, Jira sync), an
   actionable approval queue (open / approve / request changes), a "generating
@@ -58,6 +67,14 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Live run panel** — while a stage generates, the dashboard's "Generating
+  now" rail becomes a cockpit fed by a throttled `LiveRunStore`: elapsed vs
+  `timeoutSeconds` and turns vs `maxTurns` budget bars (elapsed ticks locally
+  every second), a live tool ticker with call counts, and **each subagent
+  Task as it happens** — agent, brief, pulsing while running, ✓ with duration
+  once its tool_result lands (start/end correlated by tool_use id). A Cancel
+  button (new `aidlc.cancelGeneration` command, also in the palette) aborts
+  the in-flight generation just like the progress toast.
 - **Code-plan → Claude Code handoff** — the bridge from design to
   implementation. Once a unit's code plan is approved, "Hand Off to Claude
   Code" (unit ⇢ in the tree and dashboard, or the palette) writes a committed
