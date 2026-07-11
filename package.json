@@ -106,6 +106,12 @@
         "icon": "$(run-all)"
       },
       {
+        "command": "aidlc.handoffUnit",
+        "title": "Hand Off to Claude Code",
+        "category": "AIDLC",
+        "icon": "$(rocket)"
+      },
+      {
         "command": "aidlc.approveArtifact",
         "title": "Approve Artifact",
         "category": "AIDLC",
@@ -313,6 +319,11 @@
           "command": "aidlc.runUnitPipeline",
           "when": "view == aidlcExplorer && viewItem =~ /^unit:(?!complete)/",
           "group": "inline@1"
+        },
+        {
+          "command": "aidlc.handoffUnit",
+          "when": "view == aidlcExplorer && viewItem =~ /:handoff-ready$/",
+          "group": "inline@2"
         },
         {
           "command": "aidlc.approveArtifact",

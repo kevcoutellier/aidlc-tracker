@@ -58,6 +58,18 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Code-plan → Claude Code handoff** — the bridge from design to
+  implementation. Once a unit's code plan is approved, "Hand Off to Claude
+  Code" (unit ⇢ in the tree and dashboard, or the palette) writes a committed
+  brief at `construction/<unit>/handoff.md` — mission, approved artifacts in
+  read order (code plan first), dedicated branch name
+  (`feature/<KEY>-<slug>`), commit/PR rules (repo conventions win; never
+  merge), definition of done — then offers to launch a `claude` terminal
+  session pointed at the brief, or to copy the shell-safe prompt. Audited as
+  `unit.handoff` / `unit.handoff.launch`. Together with dev-activity tracking
+  and settle-gated auto-transition, this closes the monitor→pilot loop: the
+  plugin designs and gates, a Claude Code session implements, the dashboard
+  watches the PR to done.
 - **Automatic Jira transitions** — when monitoring (or a manual dev refresh)
   detects a merged PR for a unit, its linked Jira issue is transitioned to the
   done status category (workflow-agnostic, FR/EN safe: picked by category, not

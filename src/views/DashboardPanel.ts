@@ -26,6 +26,7 @@ const ALLOWED_COMMANDS = new Set([
   "aidlc.configureExtensions",
   "aidlc.openAuditLog",
   "aidlc.runUnitPipeline",
+  "aidlc.handoffUnit",
 ]);
 
 /** Singleton webview panel showing lifecycle progress and quick actions. */

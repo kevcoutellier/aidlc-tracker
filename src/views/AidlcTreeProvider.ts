@@ -174,7 +174,10 @@ export class AidlcTreeProvider
     ]
       .filter(Boolean)
       .join(" · ");
-    item.contextValue = `unit:${status}`;
+    const planApproved =
+      unit?.stages["code-generation"]?.status === "complete";
+    item.contextValue =
+      `unit:${status}` + (planApproved ? ":handoff-ready" : "");
     item.tooltip = unit?.description;
     return item;
   }
