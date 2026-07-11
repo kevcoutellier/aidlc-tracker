@@ -7,10 +7,16 @@ import {
   SECRET_JIRA_TOKEN,
 } from "../services";
 import { initProject } from "../orchestrator/scaffolder";
-import { stageById, unitStages } from "../model/aidlcDefinition";
+import {
+  branchNameFor,
+  buildHandoffMarkdown,
+  handoffRelPath,
+  launchPrompt,
+} from "../orchestrator/handoff";
+import { artifactPath, stageById, unitStages } from "../model/aidlcDefinition";
 import { rollUpStatus } from "../model/status";
 import { StageState, UnitOfWork } from "../model/types";
-import { docsChildUri } from "../core/paths";
+import { docsChildUri, workspaceRoot } from "../core/paths";
 import { exists } from "../core/fsUtil";
 import { DashboardPanel } from "../views/DashboardPanel";
 import { Orchestrator } from "../orchestrator/Orchestrator";
@@ -104,6 +110,7 @@ export function registerCommands(
       void orchestrator.runUnitPipeline(unitId);
     }
   });
+  register("aidlc.handoffUnit", (arg: unknown) => handoffUnit(services, arg));
   register("aidlc.setAnthropicKey", () => setAnthropicKey(services));
   register("aidlc.setAnthropicToken", () => setAnthropicToken(services));
   register("aidlc.setClaudeCodeToken", () => setClaudeCodeToken(services));
@@ -268,6 +275,139 @@ async function autoTransitionMergedUnits(
     void vscode.window.showInformationMessage(
       `Jira: ${moved.join(", ")} → Done (merged PR${moved.length > 1 ? "s" : ""}).`
     );
+  }
+}
+
+/**
+ * Bridge from an approved code plan to an implementation session: write a
+ * committed handoff brief (`construction/<unit>/handoff.md`) and offer to
+ * launch Claude Code on it. The plugin never writes source code — the session
+ * implements under the repository's own conventions and gates, and the
+ * dashboard then tracks the resulting branch/PRs/checks by the unit's Jira
+ * key until auto-transition closes the loop.
+ */
+async function handoffUnit(
+  services: AidlcServices,
+  arg: unknown
+): Promise<void> {
+  const { store, writer, audit, reload } = services;
+  const state = store.state;
+  if (!state) {
+    void vscode.window.showErrorMessage("Initialize an AI-DLC project first.");
+    return;
+  }
+
+  let unitId =
+    arg && typeof arg === "object" && "unitId" in arg
+      ? (arg as { unitId?: string }).unitId
+      : undefined;
+  if (!unitId) {
+    const ready = state.units.filter(
+      (u) => u.stages["code-generation"]?.status === "complete"
+    );
+    if (ready.length === 0) {
+      void vscode.window.showInformationMessage(
+        "No unit has an approved code plan yet — run and approve Code Generation first."
+      );
+      return;
+    }
+    const pick = await vscode.window.showQuickPick(
+      ready.map((u) => ({ label: u.title, description: u.jiraKey, id: u.id })),
+      {
+        title: "Hand Off to Claude Code",
+        placeHolder: "Pick a unit with an approved code plan",
+      }
+    );
+    unitId = pick?.id;
+  }
+  const unit = state.units.find((u) => u.id === unitId);
+  if (!unit) {
+    return;
+  }
+  if (unit.stages["code-generation"]?.status !== "complete") {
+    void vscode.window.showWarningMessage(
+      `Approve the code plan for "${unit.title}" first — the handoff brief is built from it.`
+    );
+    return;
+  }
+
+  // Artifacts in read order: the code plan first, then the unit's other
+  // completed designs, then the project-level application design.
+  const codePlanRel =
+    unit.stages["code-generation"]?.artifactPath ??
+    artifactPath(stageById("code-generation")!, unit.id)!;
+  const candidates = [codePlanRel];
+  for (const s of unitStages()) {
+    if (s.id === "code-generation") {
+      continue;
+    }
+    const st = unit.stages[s.id];
+    const rel = st?.artifactPath ?? artifactPath(s, unit.id);
+    if (rel && st?.status === "complete") {
+      candidates.push(rel);
+    }
+  }
+  candidates.push("inception/application-design.md");
+  const artifacts: string[] = [];
+  for (const rel of candidates) {
+    const uri = docsChildUri(rel);
+    if (uri && (await exists(uri))) {
+      artifacts.push(rel);
+    }
+  }
+  if (artifacts[0] !== codePlanRel) {
+    void vscode.window.showErrorMessage(
+      `The approved code plan is missing on disk (${codePlanRel}). Re-run Code Generation.`
+    );
+    return;
+  }
+
+  const docsPath = vscode.workspace
+    .getConfiguration("aidlc")
+    .get<string>("docsPath", "aidlc-docs");
+  const branchName = branchNameFor(unit);
+  const rel = handoffRelPath(unit.id);
+  await writer.writeArtifact(
+    rel,
+    buildHandoffMarkdown({ unit, docsPath, artifacts, branchName })
+  );
+  await reload();
+  void audit.append("unit.handoff", {
+    unit: unit.id,
+    key: unit.jiraKey,
+    artifact: rel,
+    branch: branchName,
+  });
+
+  const prompt = launchPrompt(`${docsPath}/${rel}`);
+  const pick = await vscode.window.showInformationMessage(
+    `Handoff brief written for "${unit.title}". Launch a Claude Code session on it?`,
+    "Launch Claude Code",
+    "Copy Prompt",
+    "Open Brief"
+  );
+  if (pick === "Launch Claude Code") {
+    const term = vscode.window.createTerminal({
+      name: `Claude Code · ${unit.jiraKey ?? unit.title}`,
+      cwd: workspaceRoot()?.uri.fsPath,
+    });
+    term.show();
+    // Quote-safe by construction: launchPrompt emits no ", $, ` or backslash.
+    term.sendText(`claude "${prompt}"`, true);
+    void audit.append("unit.handoff.launch", {
+      unit: unit.id,
+      key: unit.jiraKey,
+    });
+  } else if (pick === "Copy Prompt") {
+    await vscode.env.clipboard.writeText(prompt);
+    void vscode.window.showInformationMessage(
+      "Handoff prompt copied — paste it into any Claude Code session opened at the repository root."
+    );
+  } else if (pick === "Open Brief") {
+    const uri = docsChildUri(rel);
+    if (uri) {
+      await vscode.window.showTextDocument(uri, { preview: true });
+    }
   }
 }
 

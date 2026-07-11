@@ -33,6 +33,8 @@ export interface DashboardUnit {
   done: number;
   total: number;
   dev?: UnitDevInfo;
+  /** True once the unit's code plan is approved — it can be handed off. */
+  handoffReady: boolean;
 }
 
 export interface DashboardPhase {
@@ -255,6 +257,8 @@ export function buildDashboardModel(
           done: unitDone,
           total: unitStages.length,
           dev: options.dev?.byUnit[unit.id],
+          handoffReady:
+            unit.stages["code-generation"]?.status === "complete",
         });
       }
       total = state.units.length;

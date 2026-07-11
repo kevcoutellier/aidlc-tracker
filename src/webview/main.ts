@@ -422,6 +422,12 @@ function unitRow(unit: DashboardUnit): string {
     <td class="td-dev">${devCell(unit)}</td>
     <td class="td-count">${unit.done}<small>/${unit.total}</small></td>
     <td class="td-run">${
+      unit.handoffReady
+        ? `<span class="run-all"${cmd("aidlc.handoffUnit", [
+            { unitId: unit.id },
+          ])} title="Hand off the approved code plan to a Claude Code session">⇢</span>`
+        : ""
+    }${
       unit.status === "complete"
         ? ""
         : `<span class="run-all"${cmd("aidlc.runUnitPipeline", [

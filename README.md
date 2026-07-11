@@ -48,6 +48,17 @@ to ground artifacts in real code, and can **delegate to your project's own
 Claude Code subagents** (`.claude/agents`, e.g. a security-engineer) via the
 Task tool — invocations are traced and credited in a "Contributors" line.
 
+### ⇢ Code-plan → Claude Code handoff
+The plugin never writes source code — implementation belongs to a Claude Code
+session working under your repository's own conventions and gates. Once a
+unit's code plan is **approved**, *Hand Off to Claude Code* (tree ⇢, dashboard
+row, palette) writes a committed, auditable brief
+(`construction/<unit>/handoff.md`: mission, artifacts to read, branch name,
+commit/PR rules, definition of done) and offers to **launch a Claude Code
+terminal session on it** (or copy the prompt). The dashboard then tracks the
+resulting branch/PRs/checks by the unit's Jira key, and auto-transition closes
+the loop when the PRs settle.
+
 ### 🔄 Jira as the source of truth
 - Guided **Connect to Jira** flow + status-bar indicator with quick actions.
 - **Pull**: import Requirements (Epics/Épopées), User Stories (Story/Récit),
@@ -117,9 +128,11 @@ skills, memory, and settings — click to open.
    **Create Units of Work from Jira** (open stories → linked units).
 3. **Run Next Stage** — review the generated artifact, then **Approve** or
    **Request Changes** (your feedback is fed back into regeneration).
-4. Open the **Dashboard** to steer: approval queue, pipelines, dev activity,
+4. When a unit's code plan is approved, **Hand Off to Claude Code** — the
+   implementation session works on its own branch, under your repo's gates.
+5. Open the **Dashboard** to steer: approval queue, pipelines, dev activity,
    tests, costs.
-5. **Sync to Jira** whenever you want the board to reflect reality.
+6. **Sync to Jira** whenever you want the board to reflect reality.
 
 ---
 
@@ -146,7 +159,8 @@ skills, memory, and settings — click to open.
 
 ## Key commands
 
-`Initialize AI-DLC Project` · `Run Next Stage` · `Open Dashboard` ·
+`Initialize AI-DLC Project` · `Run Next Stage` · `Hand Off to Claude Code` ·
+`Open Dashboard` ·
 `Connect to Jira` · `Sync to Jira` / `Pull Status from Jira` ·
 `Import Requirements / User Stories from Jira` · `Create Units of Work from Jira` ·
 `Run Project Tests` · `Refresh Dev Activity` · `Configure AI-DLC Extensions` ·
@@ -160,7 +174,7 @@ aidlc-docs/
 ├── aidlc-state.md          # tracked progress — human-readable + machine block
 ├── audit.md                # append-only audit journal
 ├── inception/              # requirements, user stories, workflow plan, design
-├── construction/<unit>/    # per-unit designs, code plan, build & test notes
+├── construction/<unit>/    # per-unit designs, code plan, handoff brief, build & test notes
 ├── operations/             # deployment, monitoring
 └── rules/                  # methodology rules + enabled extension rules
 ```
