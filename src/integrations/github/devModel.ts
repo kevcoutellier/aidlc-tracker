@@ -79,6 +79,20 @@ export function matchPullsToKey(pulls: RawPull[], jiraKey: string): RawPull[] {
   );
 }
 
+/**
+ * A unit may auto-transition to done only when at least one of its PRs merged
+ * AND none is still open — a story often spans several PRs, and the first
+ * merge must not close the issue while follow-up PRs are in flight.
+ */
+export function readyForDoneTransition(
+  prs: Array<Pick<PrInfo, "state">>
+): boolean {
+  return (
+    prs.some((p) => p.state === "merged") &&
+    prs.every((p) => p.state !== "open")
+  );
+}
+
 /** Fold individual check-run conclusions into one state. */
 export function summarizeChecks(
   conclusions: Array<string | null | undefined>

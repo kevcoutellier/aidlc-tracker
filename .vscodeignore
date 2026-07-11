@@ -3,7 +3,16 @@
 src/**
 test/**
 out/**
+# Packaging runs with dependency traversal (vsce --dependencies) so the Agent
+# SDK ships in the .vsix: it is esbuild-`external` (ESM, spawns the Claude
+# Code CLI) and must be requirable from the installed extension. Everything
+# else in node_modules stays out: the SDK's entrypoints import only Node
+# built-ins (its peers — zod, MCP SDK, @anthropic-ai/sdk — are bundled inside
+# sdk.mjs, and @anthropic-ai/sdk is separately bundled into dist/extension.js),
+# and the ~230 MB per-platform native binaries are replaced at runtime by
+# claudeLocator.ts finding the machine's own Claude Code install.
 node_modules/**
+!node_modules/@anthropic-ai/claude-agent-sdk/**
 .gitignore
 eslint.config.mjs
 esbuild.js

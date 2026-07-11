@@ -4,6 +4,7 @@ import {
   matchPullsToKey,
   parseGitHubRemote,
   prState,
+  readyForDoneTransition,
   summarizeChecks,
 } from "../../src/integrations/github/devModel";
 
@@ -47,6 +48,32 @@ test("matchPullsToKey matches title or head branch, case-insensitive", () => {
     [3]
   );
   assert.deepEqual(matchPullsToKey(pulls, "NUM-99"), []);
+});
+
+test("readyForDoneTransition needs a merged PR and no open PR", () => {
+  // No PRs at all: nothing merged, never ready.
+  assert.equal(readyForDoneTransition([]), false);
+  // Single merged PR: ready.
+  assert.equal(readyForDoneTransition([{ state: "merged" }]), true);
+  // A story spanning several PRs: the first merge must NOT close the issue
+  // while a follow-up PR is still open (e.g. NUM-10 → PRs #63/#65/#67).
+  assert.equal(
+    readyForDoneTransition([{ state: "merged" }, { state: "open" }]),
+    false
+  );
+  // Follow-up merged too: now ready.
+  assert.equal(
+    readyForDoneTransition([{ state: "merged" }, { state: "merged" }]),
+    true
+  );
+  // Abandoned (closed-unmerged) PRs don't block, merged one wins.
+  assert.equal(
+    readyForDoneTransition([{ state: "merged" }, { state: "closed" }]),
+    true
+  );
+  // Only open or only closed PRs: not ready.
+  assert.equal(readyForDoneTransition([{ state: "open" }]), false);
+  assert.equal(readyForDoneTransition([{ state: "closed" }]), false);
 });
 
 test("summarizeChecks folds conclusions", () => {

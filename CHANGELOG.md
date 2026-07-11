@@ -5,6 +5,22 @@ All notable changes to the AIDLC Tracker extension are documented here.
 ## [0.0.1] - Unreleased
 
 ### Fixed
+- **The packaged .vsix now ships a working `claudeCode` backend.** The Agent
+  SDK is esbuild-`external` (ESM, spawns the Claude Code CLI) but both
+  packaging paths excluded `node_modules` entirely, so any installed .vsix
+  threw "requires '@anthropic-ai/claude-agent-sdk'" at first generation — only
+  the F5 dev host worked. Packaging now runs with dependency traversal and a
+  targeted `.vscodeignore` (SDK in, its ~230 MB per-platform native binaries
+  and runtime-unused peers out → 1.1 MB .vsix), and CI fails if the SDK is
+  missing from the artifact. Because the SDK has no fallback of its own when
+  its native binary package is absent, the extension now locates the machine's
+  Claude Code install (native installer paths, `where`/`which`, npm-shim →
+  `cli.js`) and passes it as `pathToClaudeCodeExecutable`;
+  `aidlc.claudeCode.executablePath` still overrides.
+- **Auto-transition waits for ALL of a unit's PRs to settle.** A Jira issue is
+  now moved to done only when at least one matched PR merged AND none is still
+  open — previously the first merged PR closed issues whose remaining PRs were
+  still in flight (common when a story spans several PRs).
 - **Narration can no longer be saved as an artifact.** A generation whose
   output contains no markdown heading (a budget-exhausted run that only
   streamed its exploration narration) is now blocked with guidance to raise

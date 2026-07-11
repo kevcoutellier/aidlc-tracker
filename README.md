@@ -134,7 +134,7 @@ skills, memory, and settings — click to open.
 | `anthropic.baseUrl` / `anthropic.betaHeader` | — | Gateway endpoint / `anthropic-beta` header |
 | `claudeCode.useSubagents` | `true` | Allow delegation to `.claude/agents` via Task |
 | `claudeCode.maxTurns` / `timeoutSeconds` | `12` / `600` | Agent loop bounds |
-| `claudeCode.executablePath` | — | Explicit Claude Code binary path |
+| `claudeCode.executablePath` | auto | Claude Code binary (auto-detected when empty) |
 | `orchestrator.requireApproval` | `true` | Human gate on every artifact |
 | `orchestrator.autonomy` | `assume` | `assume` (stated assumptions) or `ask` (open questions) |
 | `test.command` / `test.timeoutSeconds` | auto / `900` | Test suite command and bound |
@@ -142,6 +142,7 @@ skills, memory, and settings — click to open.
 | `jira.epicIssueType` / `unitIssueType` | `Epic` / `Task` | Issue types used on push |
 | `jira.requirementsJql` · `storiesJql` · `unitsJql` | bilingual defaults | Override any import query |
 | `jira.autoSync` | `false` | Push to Jira on every state change |
+| `jira.autoTransition` | `true` | Move an issue to Done once its PRs settle (≥1 merged, none open) |
 
 ## Key commands
 
