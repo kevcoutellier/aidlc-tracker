@@ -151,6 +151,7 @@ skills, memory, and settings — click to open.
 | `claudeCode.maxTurns` / `timeoutSeconds` | `12` / `600` | Agent loop bounds |
 | `claudeCode.executablePath` | auto | Claude Code binary (auto-detected when empty) |
 | `orchestrator.requireApproval` | `true` | Human gate on every artifact |
+| `orchestrator.maxArtifactContextChars` | `6000` | Per-artifact excerpt cap in the generation context |
 | `orchestrator.autonomy` | `assume` | `assume` (stated assumptions) or `ask` (open questions) |
 | `test.command` / `test.timeoutSeconds` | auto / `900` | Test suite command and bound |
 | `jira.baseUrl` · `email` · `projectKey` | — | Jira Cloud connection (token via command) |

@@ -37,7 +37,8 @@ interface StageRef {
   unitId?: string;
 }
 
-const MAX_ARTIFACT_CONTEXT_CHARS = 6000;
+/** Fallback cap on each prior artifact's contribution to the prompt. */
+const DEFAULT_MAX_ARTIFACT_CONTEXT_CHARS = 6000;
 
 /** Current branch + commits behind origin/main of the workspace checkout. */
 async function checkoutInfo(): Promise<{ branch?: string; behindMain?: number }> {
@@ -690,6 +691,13 @@ export class Orchestrator {
     unitId?: string
   ): Promise<string> {
     const blocks: string[] = [`Project name: ${state.name}`];
+    // Workspace-relative paths of every artifact fed into this context —
+    // surfaced so the agent can point subagent briefs at the full files
+    // (Task subagents see none of this conversation, only their brief).
+    const onDisk: string[] = [];
+    const docsPath = vscode.workspace
+      .getConfiguration("aidlc")
+      .get<string>("docsPath", "aidlc-docs");
 
     // Completed inception artifacts are always relevant context.
     for (const s of stagesForPhase("inception")) {
@@ -698,6 +706,7 @@ export class Orchestrator {
         const text = await this.readArtifact(st.artifactPath);
         if (text) {
           blocks.push(`## ${s.name}\n${text}`);
+          onDisk.push(`${docsPath}/${st.artifactPath}`);
         }
       }
     }
@@ -717,10 +726,19 @@ export class Orchestrator {
             const text = await this.readArtifact(st.artifactPath);
             if (text) {
               blocks.push(`### ${s.name} (this unit)\n${text}`);
+              onDisk.push(`${docsPath}/${st.artifactPath}`);
             }
           }
         }
       }
+    }
+
+    if (onDisk.length > 0) {
+      blocks.push(
+        `## Artifact files on disk\nThe artifacts above are excerpts (long files are truncated). The full files live at these workspace-relative paths — read them when you need the complete text, and copy the relevant ones into every subagent brief:\n${onDisk
+          .map((p) => `- ${p}`)
+          .join("\n")}`
+      );
     }
 
     return blocks.length > 1
@@ -733,9 +751,16 @@ export class Orchestrator {
     if (!uri || !(await exists(uri))) {
       return undefined;
     }
+    const max = Math.max(
+      500,
+      vscode.workspace
+        .getConfiguration("aidlc")
+        .get<number>(
+          "orchestrator.maxArtifactContextChars",
+          DEFAULT_MAX_ARTIFACT_CONTEXT_CHARS
+        )
+    );
     const text = await readText(uri);
-    return text.length > MAX_ARTIFACT_CONTEXT_CHARS
-      ? `${text.slice(0, MAX_ARTIFACT_CONTEXT_CHARS)}\n…(truncated)`
-      : text;
+    return text.length > max ? `${text.slice(0, max)}\n…(truncated)` : text;
   }
 }

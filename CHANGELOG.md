@@ -51,6 +51,15 @@ All notable changes to the AIDLC Tracker extension are documented here.
   per-stage Reset action, Inception stages can't get stuck spinning.
 
 ### Changed
+- **Subagent briefs must carry the upstream artifacts.** Task subagents start
+  with no conversation context, so a delegation like "audit this unit's NFR
+  design" reached them without the designs. The generation context now ends
+  with an "Artifact files on disk" section (workspace-relative paths of every
+  artifact it included), and the subagent directive requires each brief to
+  copy the relevant paths and instruct the subagent to READ them before
+  analyzing. The per-artifact excerpt cap in the main context is now
+  configurable (`aidlc.orchestrator.maxArtifactContextChars`, default 6000) —
+  the full files are always reachable on disk regardless.
 - **Dashboard redesigned as an operations console** — masthead with phase
   stepper, KPI strip (overall %, units, approvals, blocked, Jira sync), an
   actionable approval queue (open / approve / request changes), a "generating
