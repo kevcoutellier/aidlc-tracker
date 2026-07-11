@@ -12,8 +12,12 @@ import {
   DashboardPhase,
   DashboardStage,
   DashboardUnit,
+  LiveRunView,
   RunView,
   RunningItem,
+  clampPct,
+  formatMmSs,
+  summarizeTools,
 } from "../model/dashboard";
 import { StageStatus } from "../model/types";
 
@@ -232,6 +236,9 @@ function approvalsQueue(model: DashboardModel): string {
 }
 
 function runningNow(model: DashboardModel): string {
+  if (model.live) {
+    return livePanel(model.live);
+  }
   if (model.running.length === 0) {
     return "";
   }
@@ -252,6 +259,115 @@ function runningNow(model: DashboardModel): string {
     ${rows}
   </section>`;
 }
+
+/**
+ * Rich live view of the in-flight generation: budget bars (elapsed vs
+ * timeout, turns vs maxTurns), tool ticker, and each subagent Task with its
+ * brief and running/done state. Elapsed values tick locally (see tickLive).
+ */
+function livePanel(live: LiveRunView): string {
+  const scope = live.unitTitle
+    ? `<span class="row-scope">${esc(live.unitTitle)}</span>`
+    : `<span class="row-scope">project</span>`;
+  const modelChip = live.model
+    ? `<span class="chip">${esc(live.model)}</span>`
+    : "";
+
+  const liveAttrs = ` data-live-start="${live.startedAt}" data-live-timeout="${
+    live.timeoutMs ?? ""
+  }"`;
+  const elapsedBar = `<div class="live-metric">
+      <span class="metric-label">elapsed</span>
+      <div class="bar"><div class="bar-fill live-elapsed-fill"${liveAttrs}></div></div>
+      <span class="metric-val live-elapsed-text"${liveAttrs}></span>
+    </div>`;
+  const turnsBar =
+    live.maxTurns !== undefined
+      ? `<div class="live-metric">
+          <span class="metric-label">turns</span>
+          <div class="bar"><div class="bar-fill" data-pct="${clampPct(
+            live.turns,
+            live.maxTurns
+          )}"></div></div>
+          <span class="metric-val">${live.turns}/${live.maxTurns}</span>
+        </div>`
+      : "";
+
+  const tools = summarizeTools(live.tools);
+  const activity = live.lastActivity
+    ? `<div class="live-activity">⚙ ${esc(live.lastActivity)}${
+        tools ? `<span class="live-tools">${esc(tools)}</span>` : ""
+      }</div>`
+    : "";
+
+  const tasks = live.tasks
+    .map((t) => {
+      const status =
+        t.endedAt !== undefined
+          ? `<span class="task-done">✓ ${formatMmSs(
+              t.endedAt - t.startedAt
+            )}</span>`
+          : `<span class="pulse blue"></span>`;
+      return `<div class="task-row">
+        <span class="task-agent">${esc(t.agent)}</span>
+        ${t.brief ? `<span class="task-brief">${esc(t.brief)}</span>` : ""}
+        ${status}
+      </div>`;
+    })
+    .join("");
+  const taskBlock = tasks
+    ? `<div class="live-tasks"><span class="metric-label">subagents</span>${tasks}</div>`
+    : "";
+
+  return `<section class="panel running-rail live-run">
+    <header class="panel-head">
+      <h2>Generating now</h2>
+      <span class="panel-spacer"></span>
+      <button class="btn ghost"${cmd("aidlc.cancelGeneration")}>✕ Cancel</button>
+    </header>
+    <div class="row">
+      <span class="pulse blue"></span>
+      <div class="row-main">
+        <span class="row-title">${esc(live.stageName)}</span>
+        ${scope}
+      </div>
+      ${modelChip}
+    </div>
+    ${elapsedBar}
+    ${turnsBar}
+    ${activity}
+    ${taskBlock}
+  </section>`;
+}
+
+/** Refresh elapsed text/fill from local time between host updates. */
+function tickLive(): void {
+  document
+    .querySelectorAll<HTMLElement>(".live-elapsed-text")
+    .forEach((el) => {
+      const start = Number(el.getAttribute("data-live-start"));
+      if (!start) {
+        return;
+      }
+      const timeout = Number(el.getAttribute("data-live-timeout"));
+      const elapsed = Date.now() - start;
+      el.textContent = timeout
+        ? `${formatMmSs(elapsed)} / ${formatMmSs(timeout)}`
+        : formatMmSs(elapsed);
+    });
+  document
+    .querySelectorAll<HTMLElement>(".live-elapsed-fill")
+    .forEach((el) => {
+      const start = Number(el.getAttribute("data-live-start"));
+      const timeout = Number(el.getAttribute("data-live-timeout"));
+      if (start && timeout) {
+        // CSP-safe: width via CSSOM, matching applyBars.
+        el.style.width = `${clampPct(Date.now() - start, timeout)}%`;
+      }
+    });
+}
+
+setInterval(tickLive, 1000);
 
 function testsPanel(model: DashboardModel): string {
   const t = model.tests;
@@ -518,6 +634,7 @@ function render(model: DashboardModel): void {
   ].join("");
 
   applyBars(root);
+  tickLive();
 }
 
 function applyBars(root: HTMLElement): void {

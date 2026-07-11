@@ -70,6 +70,8 @@ async function checkoutInfo(): Promise<{ branch?: string; behindMain?: number }>
 export class Orchestrator {
   private readonly output: vscode.OutputChannel;
   private busy = false;
+  /** Cancels the in-flight generation (dashboard ✕ or the progress toast). */
+  private currentCancel: vscode.CancellationTokenSource | undefined;
 
   constructor(
     private readonly services: AidlcServices,
@@ -174,6 +176,11 @@ export class Orchestrator {
     );
   }
 
+  /** Cancel the generation currently running, if any. */
+  cancelCurrent(): void {
+    this.currentCancel?.cancel();
+  }
+
   /** Generate the artifact for a specific stage and gate it on approval. */
   async runStage(
     stageId: string,
@@ -196,6 +203,8 @@ export class Orchestrator {
     // (e.g. double Run Next Stage) can't both pass the busy check and start
     // concurrent generations.
     this.busy = true;
+    const cts = new vscode.CancellationTokenSource();
+    this.currentCancel = cts;
     try {
       if (!(await this.ensureKey())) {
         return;
@@ -248,11 +257,34 @@ export class Orchestrator {
       let trace: GenerationTrace | undefined;
 
       const cfg = vscode.workspace.getConfiguration("aidlc");
+      const isClaudeCode = this.client.authMethod() === "claudeCode";
       const system =
-        this.client.authMethod() === "claudeCode" &&
-        cfg.get<boolean>("claudeCode.useSubagents", true)
+        isClaudeCode && cfg.get<boolean>("claudeCode.useSubagents", true)
           ? SYSTEM_PREAMBLE + SUBAGENT_DIRECTIVE
           : SYSTEM_PREAMBLE;
+
+      // Surface the run live in the dashboard: budgets, turns, tools, and
+      // subagent Task calls stream into the LiveRunStore as they happen.
+      const live = this.services.liveRun;
+      live.begin({
+        stageId,
+        stageName: def.name,
+        unitId,
+        unitTitle: unitId
+          ? state.units.find((u) => u.id === unitId)?.title
+          : undefined,
+        startedAt: Date.now(),
+        timeoutMs: isClaudeCode
+          ? Math.max(30, cfg.get<number>("claudeCode.timeoutSeconds", 600)) *
+            1000
+          : undefined,
+        maxTurns: isClaudeCode
+          ? cfg.get<number>("claudeCode.maxTurns", 12)
+          : undefined,
+        turns: 0,
+        tools: {},
+        tasks: [],
+      });
 
       const content = await vscode.window.withProgress(
         {
@@ -260,17 +292,59 @@ export class Orchestrator {
           cancellable: true,
           title: `AI-DLC: generating ${def.name}…`,
         },
-        (_progress, token) =>
-          this.client.generate({
+        (_progress, token) => {
+          token.onCancellationRequested(() => cts.cancel());
+          return this.client.generate({
             system,
             user,
-            token,
+            token: cts.token,
             onDelta: (t) => this.output.append(t),
             onActivity: (line) => this.output.appendLine(`\n  ⚙ ${line}`),
+            onEvent: (ev) => {
+              switch (ev.kind) {
+                case "model":
+                  live.update((r) => {
+                    r.model = ev.model;
+                  });
+                  break;
+                case "turn":
+                  live.update((r) => {
+                    r.turns += 1;
+                  });
+                  break;
+                case "tool":
+                  live.update((r) => {
+                    r.tools[ev.name] = (r.tools[ev.name] ?? 0) + 1;
+                    r.lastActivity = ev.line;
+                  });
+                  break;
+                case "task-start":
+                  live.update((r) => {
+                    r.tasks.push({
+                      id: ev.id,
+                      agent: ev.agent,
+                      brief: ev.brief,
+                      startedAt: Date.now(),
+                    });
+                  });
+                  break;
+                case "task-end":
+                  live.update((r) => {
+                    const task = r.tasks.find(
+                      (t) => t.id === ev.id && t.endedAt === undefined
+                    );
+                    if (task) {
+                      task.endedAt = Date.now();
+                    }
+                  });
+                  break;
+              }
+            },
             onTrace: (t) => {
               trace = t;
             },
-          })
+          });
+        }
       );
 
       this.recordRun(stageId, unitId, startedAt, trace, checkout.branch);
@@ -368,6 +442,9 @@ export class Orchestrator {
         );
       }
     } finally {
+      this.services.liveRun.end();
+      this.currentCancel = undefined;
+      cts.dispose();
       this.busy = false;
     }
   }

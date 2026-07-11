@@ -111,6 +111,7 @@ export function registerCommands(
     }
   });
   register("aidlc.handoffUnit", (arg: unknown) => handoffUnit(services, arg));
+  register("aidlc.cancelGeneration", () => orchestrator.cancelCurrent());
   register("aidlc.setAnthropicKey", () => setAnthropicKey(services));
   register("aidlc.setAnthropicToken", () => setAnthropicToken(services));
   register("aidlc.setClaudeCodeToken", () => setClaudeCodeToken(services));

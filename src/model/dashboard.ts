@@ -66,6 +66,66 @@ export interface RunningItem {
   unitTitle?: string;
 }
 
+/** One subagent (Task) call observed live during a generation. */
+export interface LiveTaskView {
+  /** tool_use id — correlates the start with its tool_result. */
+  id: string;
+  agent: string;
+  brief?: string;
+  startedAt: number;
+  endedAt?: number;
+}
+
+/**
+ * Live snapshot of the generation currently running, streamed from the
+ * orchestrator into the dashboard. Epoch-ms timestamps so the webview can
+ * tick elapsed time locally between host updates.
+ */
+export interface LiveRunView {
+  stageId: string;
+  stageName: string;
+  unitId?: string;
+  unitTitle?: string;
+  startedAt: number;
+  /** Generation budgets (claudeCode backend only). */
+  timeoutMs?: number;
+  maxTurns?: number;
+  turns: number;
+  model?: string;
+  tools: Record<string, number>;
+  tasks: LiveTaskView[];
+  /** Last one-line tool activity, e.g. "Read · src/index.ts". */
+  lastActivity?: string;
+}
+
+/** "Read×12 · Grep×3" — top tool calls, most used first. */
+export function summarizeTools(
+  tools: Record<string, number>,
+  top = 4
+): string {
+  return Object.entries(tools)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([name, count]) => `${name}×${count}`)
+    .join(" · ");
+}
+
+/** Milliseconds → "m:ss" (e.g. 83000 → "1:23"). */
+export function formatMmSs(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/** value/max as a 0–100 integer percentage, clamped. */
+export function clampPct(value: number, max: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(max) || max <= 0) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round((value / max) * 100)));
+}
+
 /** Aggregated test-suite health for the KPI strip and Tests panel. */
 export interface TestsView {
   last?: {
@@ -113,6 +173,8 @@ export interface DashboardModel {
   lastSync?: string;
   approvals: ApprovalItem[];
   running: RunningItem[];
+  /** Live view of the in-flight generation, when one is running. */
+  live?: LiveRunView;
   runs: RunView[];
   tests: TestsView;
   ai: AiStatsView;
@@ -135,6 +197,7 @@ export interface DashboardModel {
 export interface DashboardModelOptions {
   jiraBaseUrl?: string;
   dev?: DevActivity;
+  live?: LiveRunView;
 }
 
 /** Message posted from the extension host into the webview. */
@@ -306,11 +369,7 @@ export function buildDashboardModel(
     turns: r.turns,
     durationMs: r.durationMs,
     costUsd: r.costUsd,
-    tools: Object.entries(r.tools ?? {})
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([name, count]) => `${name}×${count}`)
-      .join(" · "),
+    tools: summarizeTools(r.tools ?? {}),
     agents: r.agents ?? [],
   }));
 
@@ -363,6 +422,7 @@ export function buildDashboardModel(
     lastSync: state.lastSync,
     approvals,
     running,
+    live: options.live,
     runs,
     tests,
     ai,

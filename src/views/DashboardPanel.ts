@@ -27,6 +27,7 @@ const ALLOWED_COMMANDS = new Set([
   "aidlc.openAuditLog",
   "aidlc.runUnitPipeline",
   "aidlc.handoffUnit",
+  "aidlc.cancelGeneration",
 ]);
 
 /** Singleton webview panel showing lifecycle progress and quick actions. */
@@ -58,6 +59,8 @@ export class DashboardPanel {
     DashboardPanel.current = new DashboardPanel(panel, services);
   }
 
+  private liveTimer: NodeJS.Timeout | undefined;
+
   private constructor(
     private readonly panel: vscode.WebviewPanel,
     private readonly services: AidlcServices
@@ -74,7 +77,10 @@ export class DashboardPanel {
 
     this.disposables.push(
       services.store.onDidChange(() => this.post()),
-      services.devStore.onDidChange(() => this.post())
+      services.devStore.onDidChange(() => this.post()),
+      // Live-run events fire on every tool call — trailing-throttle them so a
+      // chatty generation doesn't flood the webview with full re-renders.
+      services.liveRun.onDidChange(() => this.postThrottled())
     );
 
     // Push initial state once the webview script has loaded and asked for it,
@@ -101,8 +107,20 @@ export class DashboardPanel {
     const model = buildDashboardModel(this.services.store.state, {
       jiraBaseUrl: jiraBaseUrl || undefined,
       dev: this.services.devStore.activity,
+      live: this.services.liveRun.run,
     });
     void this.panel.webview.postMessage({ type: "state", model });
+  }
+
+  /** Post at most every 250 ms (trailing), for high-frequency live events. */
+  private postThrottled(): void {
+    if (this.liveTimer) {
+      return;
+    }
+    this.liveTimer = setTimeout(() => {
+      this.liveTimer = undefined;
+      this.post();
+    }, 250);
   }
 
   private uri(...segments: string[]): vscode.Uri {
@@ -136,6 +154,10 @@ export class DashboardPanel {
 
   private dispose(): void {
     DashboardPanel.current = undefined;
+    if (this.liveTimer) {
+      clearTimeout(this.liveTimer);
+      this.liveTimer = undefined;
+    }
     this.panel.dispose();
     while (this.disposables.length) {
       this.disposables.pop()?.dispose();

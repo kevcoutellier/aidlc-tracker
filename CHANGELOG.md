@@ -58,6 +58,14 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **Live run panel** — while a stage generates, the dashboard's "Generating
+  now" rail becomes a cockpit fed by a throttled `LiveRunStore`: elapsed vs
+  `timeoutSeconds` and turns vs `maxTurns` budget bars (elapsed ticks locally
+  every second), a live tool ticker with call counts, and **each subagent
+  Task as it happens** — agent, brief, pulsing while running, ✓ with duration
+  once its tool_result lands (start/end correlated by tool_use id). A Cancel
+  button (new `aidlc.cancelGeneration` command, also in the palette) aborts
+  the in-flight generation just like the progress toast.
 - **Code-plan → Claude Code handoff** — the bridge from design to
   implementation. Once a unit's code plan is approved, "Hand Off to Claude
   Code" (unit ⇢ in the tree and dashboard, or the palette) writes a committed

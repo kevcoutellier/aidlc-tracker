@@ -28,7 +28,9 @@ behind a stale spinner), per-stage run/approve/reset actions.
 ### 📊 Operations-console dashboard
 KPI strip (overall progress, units, pending approvals, blocked, Jira sync,
 **test health**, **AI cost**), an actionable **approval queue**
-(open / request changes / approve), a "generating now" rail, per-unit
+(open / request changes / approve), a **live "generating now" panel** —
+elapsed-vs-timeout and turns-vs-budget bars, a tool ticker, **each subagent at
+work** (agent · brief · running / ✓ duration) and a Cancel button — per-unit
 **pipeline segments**, and a **Recent runs** panel (model · turns · duration ·
 cost · tools · subagents per generation).
 

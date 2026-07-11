@@ -112,6 +112,12 @@
         "icon": "$(rocket)"
       },
       {
+        "command": "aidlc.cancelGeneration",
+        "title": "Cancel Current Generation",
+        "category": "AIDLC",
+        "icon": "$(stop-circle)"
+      },
+      {
         "command": "aidlc.approveArtifact",
         "title": "Approve Artifact",
         "category": "AIDLC",
