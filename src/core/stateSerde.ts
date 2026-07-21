@@ -3,7 +3,12 @@
  * {@link ./StateWriter} so it can be unit-tested under plain Node.
  */
 
-import { PersistedState, ProjectState, StageStatus } from "../model/types";
+import {
+  PersistedState,
+  ProjectState,
+  StageState,
+  StageStatus,
+} from "../model/types";
 import { PHASES, phaseById } from "../model/aidlcDefinition";
 
 export const STATE_BEGIN = "<!-- AIDLC-STATE:BEGIN";
@@ -33,13 +38,32 @@ export function parsePersistedState(text: string): PersistedState | undefined {
   }
 }
 
+/**
+ * Keep only stage entries this tracker recorded itself. Foreign-observed
+ * statuses (AWS state files, artifact presence) are re-derived on every load;
+ * persisting them would freeze a snapshot that masks live foreign progress.
+ */
+function ownStageEntries(
+  stages: Record<string, StageState>
+): Record<string, StageState> {
+  return Object.fromEntries(
+    Object.entries(stages)
+      .filter(([, s]) => !s.foreign)
+      .map(([id, s]) => {
+        const rest: StageState = { ...s };
+        delete rest.foreign;
+        return [id, rest];
+      })
+  );
+}
+
 export function toPersisted(state: ProjectState): PersistedState {
   return {
     version: 1,
     name: state.name,
     currentPhase: state.currentPhase,
-    stages: state.stages,
-    units: state.units,
+    stages: ownStageEntries(state.stages),
+    units: state.units.map((u) => ({ ...u, stages: ownStageEntries(u.stages) })),
     lastSync: state.lastSync,
     jiraEpics: state.jiraEpics,
     runs: state.runs,

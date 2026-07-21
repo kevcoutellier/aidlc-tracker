@@ -19,6 +19,23 @@ export function reconcileStageStatus(
   return recorded;
 }
 
+/**
+ * Reconcile a status observed from a foreign source (an AWS aidlc-workflows
+ * state file) with artifact presence. Foreign workflows run their own approval
+ * gates, so — unlike {@link reconcileStageStatus} — presence never coerces to
+ * `awaiting_approval`: the observed status is trusted, and artifacts on disk
+ * only upgrade an unstarted stage to complete.
+ */
+export function reconcileObservedStatus(
+  observed: StageStatus | undefined,
+  present: boolean
+): StageStatus {
+  if (observed === undefined || observed === "not_started") {
+    return present ? "complete" : "not_started";
+  }
+  return observed;
+}
+
 /** Derive an aggregate status from a set of stage states (e.g. a unit's). */
 export function rollUpStatus(
   stages: Record<string, StageState>

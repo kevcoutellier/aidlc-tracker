@@ -46,6 +46,12 @@ export interface StageState {
   artifactPath?: string;
   /** ISO-8601 timestamp of the last status change. */
   updatedAt?: string;
+  /**
+   * Transient: the status was observed (foreign AWS state file or artifact
+   * presence), not recorded by this tracker. Re-derived on every load and
+   * stripped from persistence so stale snapshots never mask live progress.
+   */
+  foreign?: boolean;
 }
 
 /** A construction-phase unit of work (maps to one Jira issue when synced). */

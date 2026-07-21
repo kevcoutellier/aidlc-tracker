@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { reconcileStageStatus, rollUpStatus } from "../../src/model/status";
+import {
+  reconcileObservedStatus,
+  reconcileStageStatus,
+  rollUpStatus,
+} from "../../src/model/status";
 import { StageState, StageStatus } from "../../src/model/types";
 
 function states(...statuses: StageStatus[]): Record<string, StageState> {
@@ -65,4 +69,19 @@ test("reconcile: without an artifact the recorded status is kept", () => {
   assert.equal(reconcileStageStatus("in_progress", false), "in_progress");
   assert.equal(reconcileStageStatus("blocked", false), "blocked");
   assert.equal(reconcileStageStatus("complete", false), "complete");
+});
+
+test("observed: presence upgrades an unstarted foreign stage to complete", () => {
+  assert.equal(reconcileObservedStatus(undefined, true), "complete");
+  assert.equal(reconcileObservedStatus("not_started", true), "complete");
+  assert.equal(reconcileObservedStatus(undefined, false), "not_started");
+  assert.equal(reconcileObservedStatus("not_started", false), "not_started");
+});
+
+test("observed: foreign statuses are trusted, never coerced to approval", () => {
+  // An AWS workflow mid-stage writes files continuously; that is not our gate.
+  assert.equal(reconcileObservedStatus("in_progress", true), "in_progress");
+  assert.equal(reconcileObservedStatus("awaiting_approval", true), "awaiting_approval");
+  // A foreign complete holds even when we cannot see the artifact.
+  assert.equal(reconcileObservedStatus("complete", false), "complete");
 });

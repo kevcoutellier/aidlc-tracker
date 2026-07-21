@@ -35,3 +35,18 @@ test("parse returns undefined for an unsupported version", () => {
   const text = `${STATE_BEGIN}\n{"version": 2}\nAIDLC-STATE:END -->`;
   assert.equal(parsePersistedState(text), undefined);
 });
+
+test("foreign-observed stage entries are not persisted", () => {
+  const state = makeState();
+  state.stages["requirements-analysis"].foreign = true;
+  state.units[0].stages["functional-design"].foreign = true;
+
+  const parsed = parsePersistedState(serializeState(state));
+  assert.ok(parsed);
+  assert.equal(parsed!.stages["requirements-analysis"], undefined);
+  assert.ok(parsed!.stages["user-stories"]);
+  assert.equal(parsed!.units[0].stages["functional-design"], undefined);
+  assert.ok(parsed!.units[0].stages["nfr-design"]);
+  // The transient flag itself never reaches the serialized block.
+  assert.equal(JSON.stringify(parsed).includes('"foreign"'), false);
+});

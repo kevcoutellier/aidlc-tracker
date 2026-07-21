@@ -67,6 +67,27 @@ All notable changes to the AIDLC Tracker extension are documented here.
   clickable Jira keys.
 
 ### Added
+- **AWS aidlc-workflows compatibility (read-only)** — a project driven by the
+  official [awslabs/aidlc-workflows](https://github.com/awslabs/aidlc-workflows)
+  rules is now tracked without any generation by this extension, for **both**
+  layouts:
+  - *main (v0.1.x)*: per-stage subdirectories under `aidlc-docs/`
+    (`inception/requirements/requirements.md`,
+    `construction/<unit>/functional-design/…`, plans under
+    `construction/plans/`, shared `construction/build-and-test/`) are
+    recognized as stage artifacts; units of work are auto-discovered from
+    `construction/` directories.
+  - *v2*: the most recently touched intent record
+    (`aidlc/spaces/<space>/intents/<intent>/`) is auto-detected as the docs
+    root, `<phase>/<stage>/` artifact dirs are recognized (`memory.md` running
+    logs excluded), units are discovered from per-stage instance dirs, and the
+    checkbox statuses in the AWS `aidlc-state.md` (`[ ] [-] [?] [R] [x] [S]`)
+    surface as live stage statuses.
+  A foreign `aidlc-state.md` is **never rewritten**: tracker state moves to
+  `aidlc-tracker-state.md` alongside it, foreign-observed statuses stay
+  transient (re-derived each load, never frozen into the tracker block), and
+  init skips scaffolding into a foreign layout. An explicit `aidlc.docsPath`
+  setting disables auto-detection.
 - **Live run panel** — while a stage generates, the dashboard's "Generating
   now" rail becomes a cockpit fed by a throttled `LiveRunStore`: elapsed vs
   `timeoutSeconds` and turns vs `maxTurns` budget bars (elapsed ticks locally

@@ -184,6 +184,26 @@ aidlc-docs/
 
 Files are the state: everything is diffable, reviewable, and survives reloads.
 
+### Also speaks AWS aidlc-workflows
+
+If your docs were produced by the official
+[awslabs/aidlc-workflows](https://github.com/awslabs/aidlc-workflows) rules
+(Kiro, Cursor, Claude Code, Amazon Q), the tracker follows them as-is — no
+re-generation needed:
+
+- **main layout** — per-stage subdirectories under `aidlc-docs/`
+  (`inception/requirements/requirements.md`, `construction/<unit>/…`, shared
+  `construction/build-and-test/`) count as stage artifacts, and units of work
+  are auto-discovered from `construction/` directories.
+- **v2 layout** — the most recent intent record under
+  `aidlc/spaces/<space>/intents/<intent>/` is auto-detected as the docs root,
+  and the checkbox stage statuses in its `aidlc-state.md` show up live in the
+  tree and dashboard.
+
+The AWS-owned `aidlc-state.md` is **never modified**: the tracker keeps its own
+state in `aidlc-tracker-state.md` next to it. Setting `aidlc.docsPath`
+explicitly disables the auto-detection.
+
 ## Security posture
 
 - Secrets (Anthropic, Jira) live **only** in VS Code SecretStorage.

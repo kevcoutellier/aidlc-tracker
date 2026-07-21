@@ -35,3 +35,43 @@ export async function writeIfAbsent(
   await writeText(uri, content);
   return true;
 }
+
+/** Stat a path, or undefined when it does not exist. */
+export async function statOrUndefined(
+  uri: vscode.Uri
+): Promise<vscode.FileStat | undefined> {
+  try {
+    return await vscode.workspace.fs.stat(uri);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Sorted names of child directories; [] when the path is missing. */
+export async function listDirectories(uri: vscode.Uri): Promise<string[]> {
+  try {
+    const entries = await vscode.workspace.fs.readDirectory(uri);
+    return entries
+      .filter(([, type]) => type === vscode.FileType.Directory)
+      .map(([name]) => name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/** Sorted names of child `*.md` files; [] when the path is missing. */
+export async function listMarkdownFiles(uri: vscode.Uri): Promise<string[]> {
+  try {
+    const entries = await vscode.workspace.fs.readDirectory(uri);
+    return entries
+      .filter(
+        ([name, type]) =>
+          type === vscode.FileType.File && name.toLowerCase().endsWith(".md")
+      )
+      .map(([name]) => name)
+      .sort();
+  } catch {
+    return [];
+  }
+}

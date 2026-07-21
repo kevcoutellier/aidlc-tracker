@@ -18,7 +18,12 @@ import {
   DevActivityService,
   DevActivityStore,
 } from "./integrations/github/DevActivityService";
-import { docsFolderName } from "./core/paths";
+import {
+  DEFAULT_DOCS_FOLDER,
+  docsFolderName,
+  refreshDocsFolderDetection,
+  V2_ROOT,
+} from "./core/paths";
 import { rollUpStatus } from "./model/status";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -34,6 +39,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const audit = new AuditLog();
 
   const reload = async (): Promise<void> => {
+    // Re-detect the docs layout (native aidlc-docs/ or an AWS aidlc-workflows
+    // v2 record dir) so the watcher follows wherever the docs actually live.
+    if (await refreshDocsFolderDetection()) {
+      docsWatcher.rebuild();
+    }
     const state = await parser.load();
     store.setState(state);
     await vscode.commands.executeCommand(
@@ -83,8 +93,17 @@ export function activate(context: vscode.ExtensionContext): void {
     showCollapseAll: true,
   });
 
+  // Watch both potential roots as well as the effective folder, so creating
+  // either layout from scratch (tracker init or an AWS workflow run) is seen.
   const docsWatcher = new FileWatcher(
-    () => [`${docsFolderName()}/**`],
+    () =>
+      Array.from(
+        new Set([
+          `${docsFolderName()}/**`,
+          `${DEFAULT_DOCS_FOLDER}/**`,
+          `${V2_ROOT}/**`,
+        ])
+      ),
     () => void reload()
   );
   const claudeWatcher = new FileWatcher(
@@ -174,16 +193,20 @@ async function resetStaleRuns(
     return;
   }
   let changed = false;
+  // Foreign-observed statuses (AWS state files) are not our runs: an AWS
+  // workflow legitimately keeps a stage in progress across our reloads.
   for (const id of Object.keys(state.stages)) {
-    if (state.stages[id].status === "in_progress") {
-      state.stages[id].status = "not_started";
+    const stage = state.stages[id];
+    if (stage.status === "in_progress" && !stage.foreign) {
+      stage.status = "not_started";
       changed = true;
     }
   }
   for (const unit of state.units) {
     for (const id of Object.keys(unit.stages)) {
-      if (unit.stages[id].status === "in_progress") {
-        unit.stages[id].status = "not_started";
+      const stage = unit.stages[id];
+      if (stage.status === "in_progress" && !stage.foreign) {
+        stage.status = "not_started";
         changed = true;
       }
     }
