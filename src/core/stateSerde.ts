@@ -22,6 +22,76 @@ const STATUS_LABEL: Record<StageStatus, string> = {
   complete: "complete",
 };
 
+/**
+ * Canonicalize a status value read from the state block. External agents
+ * (e.g. the AWS aidlc-workflows rules running in Kiro) edit this file and
+ * write natural-language variants — "completed", "in progress", "done" —
+ * which must map onto the strict enum instead of reaching the UI as unknown
+ * strings (rendered as not-started). Returns undefined when the value carries
+ * no recognizable signal.
+ */
+export function normalizeStageStatus(value: unknown): StageStatus | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  switch (value.trim().toLowerCase().replace(/[\s-]+/g, "_")) {
+    case "not_started":
+    case "notstarted":
+    case "pending":
+    case "todo":
+    case "new":
+      return "not_started";
+    case "in_progress":
+    case "inprogress":
+    case "started":
+    case "running":
+    case "active":
+    case "generating":
+    case "revising":
+      return "in_progress";
+    case "awaiting_approval":
+    case "awaitingapproval":
+    case "awaiting_review":
+    case "pending_approval":
+    case "pending_review":
+    case "in_review":
+    case "review":
+      return "awaiting_approval";
+    case "blocked":
+    case "on_hold":
+    case "stuck":
+      return "blocked";
+    case "complete":
+    case "completed":
+    case "done":
+    case "finished":
+    case "approved":
+      return "complete";
+    default:
+      return undefined;
+  }
+}
+
+/** Drop entries without a usable status; canonicalize the rest. */
+function sanitizeStageEntries(
+  stages: Record<string, StageState> | undefined
+): Record<string, StageState> {
+  const out: Record<string, StageState> = {};
+  for (const [id, entry] of Object.entries(stages ?? {})) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const status = normalizeStageStatus(entry.status);
+    if (!status) {
+      continue; // no usable signal — artifact presence decides at load time
+    }
+    const clean: StageState = { ...entry, id, status };
+    delete clean.foreign; // never trust a persisted transient flag
+    out[id] = clean;
+  }
+  return out;
+}
+
 /** Extract the machine-managed {@link PersistedState} from a state file body. */
 export function parsePersistedState(text: string): PersistedState | undefined {
   const start = text.indexOf(STATE_BEGIN);
@@ -32,7 +102,18 @@ export function parsePersistedState(text: string): PersistedState | undefined {
   const json = text.slice(start + STATE_BEGIN.length, end).trim();
   try {
     const parsed = JSON.parse(json) as PersistedState;
-    return parsed.version === 1 ? parsed : undefined;
+    if (parsed.version !== 1) {
+      return undefined;
+    }
+    return {
+      ...parsed,
+      stages: sanitizeStageEntries(parsed.stages),
+      units: (parsed.units ?? []).map((u) => ({
+        ...u,
+        status: normalizeStageStatus(u.status) ?? "not_started",
+        stages: sanitizeStageEntries(u.stages),
+      })),
+    };
   } catch {
     return undefined;
   }

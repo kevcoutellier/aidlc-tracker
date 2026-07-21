@@ -2,7 +2,23 @@
 
 All notable changes to the AIDLC Tracker extension are documented here.
 
-## [0.0.1] - Unreleased
+## [0.0.2] - Unreleased
+
+### Fixed
+- **Stage progress written by an external agent now shows in the tree and
+  dashboard.** The AI-DLC rules running in an agent chat (e.g. Kiro) edit
+  `aidlc-state.md` themselves and write natural-language statuses —
+  `"completed"`, `"in progress"`, `"done"` — where the machine block expects
+  the strict enum (`complete`, …). Unknown strings used to flow into the UI
+  and render as not-started (Inception stuck at 0/6 after Workspace
+  Detection). Statuses are now canonicalized at parse time (variants mapped,
+  unrecognizable values dropped in favor of artifact presence), and the
+  checkbox list in the state file's human section is read as an observed
+  fallback — so a stage ticked `[x]` shows through even when only the visible
+  list was updated. An observed `not_started` never overrides a tracker
+  record, preserving the awaiting-approval recovery for reset stages.
+
+## [0.0.1] - 2026-07-21
 
 ### Fixed
 - **The packaged .vsix now ships a working `claudeCode` backend.** The Agent
