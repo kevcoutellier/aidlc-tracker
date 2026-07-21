@@ -103,6 +103,15 @@ skills, memory, and settings — click to open.
 ## Getting started
 
 ### Install
+- **From the release** (recommended): download `aidlc-tracker.vsix` from the
+  [latest release](https://github.com/kevcoutellier/aidlc-tracker/releases/latest)
+  → `Extensions: Install from VSIX…` (VS Code ≥ 1.90).
+- **In Kiro** (or another Code OSS fork): same `.vsix`, same
+  `Extensions: Install from VSIX…` command — the extension only uses stable
+  VS Code APIs. If an older Kiro build rejects the engine check
+  ("not compatible with Code 0.x"), update Kiro; worst case, open the same
+  folder in VS Code side by side — the tracker only *reads* the files,
+  whichever agent writes them.
 - **From CI**: download the `.vsix` artifact of any green
   [CI run](https://github.com/kevcoutellier/aidlc-tracker/actions) →
   `Extensions: Install from VSIX…`
@@ -112,6 +121,10 @@ skills, memory, and settings — click to open.
   cd aidlc-tracker && npm install
   # press F5 in VS Code → Extension Development Host
   ```
+
+> **Just tracking an AWS aidlc-workflows project?** No setup needed at all —
+> no Anthropic key, no Jira. Install, open the folder, and the tree and
+> dashboard fill in as the AWS agent works.
 
 ### Set up (once per machine)
 1. Pick an AI backend:
