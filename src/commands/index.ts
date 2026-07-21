@@ -14,6 +14,7 @@ import {
   launchPrompt,
 } from "../orchestrator/handoff";
 import { artifactPath, stageById, unitStages } from "../model/aidlcDefinition";
+import { isExternallyDriven, kiroRunPrompt } from "../model/externalAgent";
 import { rollUpStatus } from "../model/status";
 import { StageState, UnitOfWork } from "../model/types";
 import { docsChildUri, workspaceRoot } from "../core/paths";
@@ -41,6 +42,80 @@ function stageRef(arg: unknown): StageArg {
   return {};
 }
 
+/**
+ * Gate the internal generator on externally-driven projects (AI-DLC rules in
+ * the IDE agent, or progress observed from outside the tracker): running it
+ * there duplicates the agent's work in a separate, separately-billed session.
+ * Returns true when the run should proceed.
+ */
+async function confirmInternalRun(
+  services: AidlcServices,
+  action: string,
+  target?: StageArg
+): Promise<boolean> {
+  if (
+    !isExternallyDriven(services.store.state, services.claudeStore.assets)
+  ) {
+    return true;
+  }
+  const cfg = vscode.workspace.getConfiguration("aidlc");
+  const method = cfg.get<string>("anthropic.authMethod", "apiKey");
+  const model = cfg.get<string>("anthropic.model", "claude-opus-4-8");
+  const runAnyway = "Run Anyway";
+  const copyPrompt = "Copy Prompt for IDE Agent";
+  const pick = await vscode.window.showWarningMessage(
+    `This project appears to be driven by an external agent (Kiro / AI-DLC rules detected).\n\n` +
+      `"${action}" would use the tracker's own generator instead — backend "${method}", model "${model}" — ` +
+      `a separate session billed to your Anthropic credential, independent of the agent chat.`,
+    { modal: true },
+    runAnyway,
+    copyPrompt
+  );
+  if (pick === copyPrompt) {
+    await copyKiroPromptFor(services, target ?? {});
+    return false;
+  }
+  return pick === runAnyway;
+}
+
+/** Copy a ready-to-paste stage prompt for the IDE agent (Kiro chat). */
+async function copyKiroPrompt(
+  services: AidlcServices,
+  orchestrator: Orchestrator,
+  target: StageArg
+): Promise<void> {
+  let resolved = target;
+  if (!resolved.stageId && !resolved.unitId) {
+    const state = services.store.state;
+    resolved = (state && orchestrator.computeNext(state)) ?? {};
+    if (!resolved.stageId) {
+      void vscode.window.showInformationMessage(
+        "All AI-DLC stages are complete — nothing to prompt for. 🎉"
+      );
+      return;
+    }
+  }
+  await copyKiroPromptFor(services, resolved);
+}
+
+async function copyKiroPromptFor(
+  services: AidlcServices,
+  target: StageArg
+): Promise<void> {
+  const unit = target.unitId
+    ? services.store.state?.units.find((u) => u.id === target.unitId)
+    : undefined;
+  const prompt = kiroRunPrompt(target.stageId, unit);
+  await vscode.env.clipboard.writeText(prompt);
+  void services.audit.append("kiro.prompt.copy", {
+    stage: target.stageId ?? "(pipeline)",
+    unit: target.unitId,
+  });
+  void vscode.window.showInformationMessage(
+    "Prompt copied — paste it into the IDE agent chat (Kiro) to run the stage there."
+  );
+}
+
 /** Registers every contributed command. */
 export function registerCommands(
   services: AidlcServices,
@@ -62,12 +137,31 @@ export function registerCommands(
   register("aidlc.addUnitOfWork", () => addUnitOfWork(services));
   register("aidlc.openDashboard", () => DashboardPanel.createOrShow(services));
 
-  register("aidlc.runNextStage", () => orchestrator.runNextStage());
-  register("aidlc.runStage", (arg: unknown) => {
+  register("aidlc.runNextStage", async () => {
+    const next = services.store.state
+      ? orchestrator.computeNext(services.store.state)
+      : undefined;
+    if (await confirmInternalRun(services, "Run Next Stage", next)) {
+      void orchestrator.runNextStage();
+    }
+  });
+  register("aidlc.runStage", async (arg: unknown) => {
     const { stageId, unitId } = stageRef(arg);
-    if (stageId) {
+    if (!stageId) {
+      return;
+    }
+    const name = stageById(stageId)?.name ?? stageId;
+    if (await confirmInternalRun(services, `Run "${name}"`, { stageId, unitId })) {
       void orchestrator.runStage(stageId, unitId);
     }
+  });
+  register("aidlc.copyKiroPrompt", (arg: unknown) => {
+    const ref = stageRef(arg);
+    // Unit tree nodes carry only a unitId — prompt for the unit's pipeline.
+    if (!ref.stageId && arg && typeof arg === "object" && "unitId" in arg) {
+      ref.unitId = (arg as { unitId?: string }).unitId;
+    }
+    return copyKiroPrompt(services, orchestrator, ref);
   });
   register("aidlc.approveArtifact", (arg: unknown) => {
     const { stageId, unitId } = stageRef(arg);
@@ -106,7 +200,12 @@ export function registerCommands(
       );
       unitId = pick?.id;
     }
-    if (unitId) {
+    if (
+      unitId &&
+      (await confirmInternalRun(services, "Run Unit Pipeline (auto-approve)", {
+        unitId,
+      }))
+    ) {
       void orchestrator.runUnitPipeline(unitId);
     }
   });

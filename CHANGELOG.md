@@ -2,7 +2,28 @@
 
 All notable changes to the AIDLC Tracker extension are documented here.
 
-## [0.0.3] - Unreleased
+## [0.0.4] - Unreleased
+
+### Added
+- **Run buttons are guarded on externally-driven projects.** When the project
+  appears to be driven by an IDE agent (Kiro / AI-DLC rules detected, or
+  stage progress observed from outside the tracker), `Run Next Stage`,
+  `Run This Stage` and `Run Unit Pipeline` first show a modal confirmation
+  naming the internal backend and model — the tracker's generator is a
+  separate session billed to your Anthropic credential, independent of the
+  agent chat, and should not fire by accident (a stray click can cost real
+  money). Unconfigured users were already safe (missing-credential error
+  before any call); the guard protects configured ones.
+- **"Copy Stage Prompt for IDE Agent (Kiro)"** — new command (palette, stage
+  and unit context menus, and a button inside the guard dialog) that copies a
+  ready-to-paste prompt asking the IDE agent to execute the stage (or a
+  unit's remaining Construction stages) under the workspace's AI-DLC rules,
+  including the state-file contract (canonical `complete` status, human
+  checklist + machine block, audit append). Kiro exposes no API to trigger
+  its agent programmatically — the clipboard hand-off keeps the loop in one
+  chat and one billing. Audited as `kiro.prompt.copy`.
+
+## [0.0.3] - 2026-07-21
 
 ### Added
 - **The assets view now matches the harness/IDE actually driving the

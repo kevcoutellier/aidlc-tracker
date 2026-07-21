@@ -227,6 +227,12 @@ The AWS-owned `aidlc-state.md` is **never modified**: the tracker keeps its own
 state in `aidlc-tracker-state.md` next to it. Setting `aidlc.docsPath`
 explicitly disables the auto-detection.
 
+On such projects the **Run buttons ask before firing** the tracker's internal
+generator (a separate session billed to your Anthropic credential — the IDE
+agent should normally do the work), and **Copy Stage Prompt for IDE Agent
+(Kiro)** puts a ready-to-paste prompt on the clipboard to run the stage in the
+agent chat instead.
+
 ## Security posture
 
 - Secrets (Anthropic, Jira) live **only** in VS Code SecretStorage.

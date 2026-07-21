@@ -2,7 +2,7 @@
   "name": "aidlc-tracker",
   "displayName": "AIDLC Tracker",
   "description": "Orchestrate, track, and sync a project through the AI-Driven Development Life Cycle (AI-DLC): Inception → Construction → Operations.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "aidlc",
   "license": "MIT",
   "repository": {
@@ -245,6 +245,12 @@
         "command": "aidlc.openExternalGitHub",
         "title": "Open on GitHub",
         "category": "AIDLC"
+      },
+      {
+        "command": "aidlc.copyKiroPrompt",
+        "title": "Copy Stage Prompt for IDE Agent (Kiro)",
+        "category": "AIDLC",
+        "icon": "$(clippy)"
       }
     ],
     "menus": {
@@ -340,6 +346,16 @@
           "command": "aidlc.requestChanges",
           "when": "view == aidlcExplorer && viewItem =~ /^stage:awaiting_approval/",
           "group": "inline@2"
+        },
+        {
+          "command": "aidlc.copyKiroPrompt",
+          "when": "view == aidlcExplorer && viewItem =~ /^stage:/",
+          "group": "kiro@1"
+        },
+        {
+          "command": "aidlc.copyKiroPrompt",
+          "when": "view == aidlcExplorer && viewItem =~ /^unit:/",
+          "group": "kiro@1"
         }
       ],
       "commandPalette": [
