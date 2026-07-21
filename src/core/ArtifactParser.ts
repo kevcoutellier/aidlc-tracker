@@ -127,9 +127,12 @@ export class ArtifactParser {
   }
 
   /**
-   * Read tracker state and, when `aidlc-state.md` belongs to a foreign tool,
-   * its checkbox stage statuses. Tracker state then lives in
-   * `aidlc-tracker-state.md`.
+   * Read tracker state plus checkbox stage statuses observed in the state
+   * file's human-readable section. The checkboxes matter in two cases: a
+   * foreign (AWS aidlc-workflows) `aidlc-state.md` — tracker state then lives
+   * in `aidlc-tracker-state.md` — and our own file after an external agent
+   * (e.g. the AI-DLC rules running in Kiro's chat) ticked a stage in the
+   * visible list without writing a canonical status into the machine block.
    */
   private async readStateFiles(): Promise<{
     persisted?: PersistedState;
@@ -140,14 +143,13 @@ export class ArtifactParser {
       return {};
     }
     let persisted: PersistedState | undefined;
-    let foreignText: string | undefined;
+    let observedText: string | undefined;
     if (await exists(primary)) {
       try {
         const text = await readText(primary);
+        observedText = text;
         if (text.includes(STATE_BEGIN)) {
           persisted = parsePersistedState(text);
-        } else {
-          foreignText = text;
         }
       } catch {
         // Unreadable state file: fall through to artifact presence only.
@@ -165,8 +167,8 @@ export class ArtifactParser {
     }
     return {
       persisted,
-      foreign: foreignText
-        ? parseForeignStageProgress(foreignText)
+      foreign: observedText
+        ? parseForeignStageProgress(observedText)
         : undefined,
     };
   }
@@ -251,11 +253,14 @@ export class ArtifactParser {
   }
 
   /**
-   * Merge our own recorded status with a foreign-observed one and artifact
-   * presence. Our record wins unless it carries no signal (absent, or a
-   * scaffolded `not_started` while the foreign file knows more); statuses that
-   * did not come from our record are flagged transient so they are re-derived
-   * each load instead of persisted.
+   * Merge our own recorded status with an observed one (foreign state file or
+   * our file's human checkbox section) and artifact presence. Our record wins
+   * unless it is a `not_started` while the observed status carries a positive
+   * signal — an external agent ticking a stage must show through, but a mere
+   * observed `not_started` must NOT override our record, or a reset stage with
+   * its artifact still on disk would skip the awaiting-approval recovery.
+   * Statuses that did not come from our record are flagged transient so they
+   * are re-derived each load instead of persisted.
    */
   private reconcile(
     stageId: string,
@@ -264,9 +269,13 @@ export class ArtifactParser {
     resolved: ResolvedArtifact | undefined
   ): StageState {
     const present = resolved !== undefined;
+    const positiveObserved =
+      observed !== undefined && observed !== "not_started"
+        ? observed
+        : undefined;
     const ownHasSignal =
       own !== undefined &&
-      !(own.status === "not_started" && observed !== undefined);
+      !(own.status === "not_started" && positiveObserved !== undefined);
 
     const state: StageState = ownHasSignal
       ? { id: stageId, status: reconcileStageStatus(own.status, present) }
