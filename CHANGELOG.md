@@ -2,7 +2,24 @@
 
 All notable changes to the AIDLC Tracker extension are documented here.
 
-## [0.0.2] - Unreleased
+## [0.0.3] - Unreleased
+
+### Added
+- **The assets view now matches the harness/IDE actually driving the
+  workspace.** "Claude Assets" becomes **"Agent Assets"**, with groups that
+  appear only when detected: Claude Code (unchanged — agents, commands,
+  skills, memory, settings), **Kiro steering files** (recursive, with the
+  frontmatter inclusion mode — always / fileMatch + pattern / manual — as a
+  badge), **Kiro specs** (one row per feature with its requirements · design
+  · tasks documents), **Kiro hooks** (`.kiro.hook` JSON) and **Kiro MCP
+  settings**, the **AWS AI-DLC rule details** (`.kiro/aws-aidlc-rule-details/`
+  or root `.aidlc-rule-details/`, collapsed by default), **Cursor rules**
+  (`.cursor/rules/*.mdc` with alwaysApply/globs badges, plus legacy
+  `.cursorrules`) and **Amazon Q rules** (`.amazonq/rules/`). `AGENTS.md`
+  moves to a cross-harness **Shared** group. The watcher covers the new
+  roots, so the view live-updates as an agent installs or edits its rules.
+
+## [0.0.2] - 2026-07-21
 
 ### Fixed
 - **Stage progress written by an external agent now shows in the tree and

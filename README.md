@@ -94,9 +94,19 @@ The AWS extension registry, enforced at generation time: **Security Baseline**
 stages and every artifact must end with a per-rule compliance section
 (compliant / non-compliant / N/A) — non-compliance is a blocking finding.
 
-### 🧠 Claude assets view
-Detects `.claude/` and `CLAUDE.md` and lists the workspace's agents, commands,
-skills, memory, and settings — click to open.
+### 🧠 Agent assets view
+Surfaces the assets steering whichever agent works in this workspace — click
+to open. Groups appear only when detected:
+- **Claude Code** — `.claude/` agents, commands, skills, memory (`CLAUDE.md`),
+  settings.
+- **Kiro** — steering files (`.kiro/steering/`, with their inclusion mode:
+  always / fileMatch / manual), specs (`.kiro/specs/<feature>/` requirements ·
+  design · tasks), hooks, and MCP settings.
+- **AI-DLC rules** — the AWS aidlc-workflows rule details
+  (`.kiro/aws-aidlc-rule-details/` or `.aidlc-rule-details/`).
+- **Cursor** (`.cursor/rules/*.mdc`, legacy `.cursorrules`) and
+  **Amazon Q** (`.amazonq/rules/`).
+- **Shared** — `AGENTS.md`, the cross-harness standard.
 
 ---
 

@@ -4,7 +4,7 @@ import { ClaudeStore } from "../core/ClaudeStore";
 
 interface GroupNode {
   kind: "group";
-  group: ClaudeAssetKind;
+  group: string;
 }
 interface AssetNode {
   kind: "asset";
@@ -17,16 +17,26 @@ interface MessageNode {
 type Node = GroupNode | AssetNode | MessageNode;
 
 const GROUPS: {
-  key: ClaudeAssetKind;
+  key: string;
   label: string;
   icon: string;
+  /** Large reference groups start collapsed. */
+  collapsed?: boolean;
   pick: (a: ClaudeAssets) => ClaudeAsset[];
 }[] = [
-  { key: "agent", label: "Agents", icon: "hubot", pick: (a) => a.agents },
-  { key: "command", label: "Commands", icon: "terminal", pick: (a) => a.commands },
-  { key: "skill", label: "Skills", icon: "lightbulb", pick: (a) => a.skills },
+  { key: "agents", label: "Agents", icon: "hubot", pick: (a) => a.agents },
+  { key: "commands", label: "Commands", icon: "terminal", pick: (a) => a.commands },
+  { key: "skills", label: "Skills", icon: "lightbulb", pick: (a) => a.skills },
   { key: "memory", label: "Memory", icon: "book", pick: (a) => a.memory },
   { key: "settings", label: "Settings", icon: "settings-gear", pick: (a) => a.settings },
+  { key: "kiroSteering", label: "Kiro Steering", icon: "compass", pick: (a) => a.kiroSteering },
+  { key: "kiroSpecs", label: "Kiro Specs", icon: "notebook", pick: (a) => a.kiroSpecs },
+  { key: "kiroHooks", label: "Kiro Hooks", icon: "zap", pick: (a) => a.kiroHooks },
+  { key: "kiroSettings", label: "Kiro Settings", icon: "settings-gear", pick: (a) => a.kiroSettings },
+  { key: "aidlcRules", label: "AI-DLC Rules", icon: "law", collapsed: true, pick: (a) => a.aidlcRules },
+  { key: "cursorRules", label: "Cursor Rules", icon: "pencil", pick: (a) => a.cursorRules },
+  { key: "amazonqRules", label: "Amazon Q Rules", icon: "cloud", pick: (a) => a.amazonqRules },
+  { key: "shared", label: "Shared", icon: "globe", pick: (a) => a.shared },
 ];
 
 const ASSET_ICON: Record<ClaudeAssetKind, string> = {
@@ -35,9 +45,13 @@ const ASSET_ICON: Record<ClaudeAssetKind, string> = {
   skill: "lightbulb",
   memory: "book",
   settings: "settings-gear",
+  steering: "compass",
+  rule: "law",
+  spec: "notebook",
+  hook: "zap",
 };
 
-/** Tree of Claude Code assets grouped by kind. */
+/** Tree of agent assets (Claude Code, Kiro, Cursor, Amazon Q) by group. */
 export class ClaudeAssetsProvider implements vscode.TreeDataProvider<Node> {
   private readonly _onDidChangeTreeData = new vscode.EventEmitter<
     Node | undefined
@@ -59,7 +73,13 @@ export class ClaudeAssetsProvider implements vscode.TreeDataProvider<Node> {
       );
       return groups.length > 0
         ? groups
-        : [{ kind: "message", label: "No Claude assets found in .claude/." }];
+        : [
+            {
+              kind: "message",
+              label:
+                "No agent assets found (.claude/, .kiro/, .cursor/, .amazonq/).",
+            },
+          ];
     }
     if (element.kind === "group") {
       const def = GROUPS.find((g) => g.key === element.group)!;
@@ -81,7 +101,9 @@ export class ClaudeAssetsProvider implements vscode.TreeDataProvider<Node> {
       const count = def.pick(this.store.assets!).length;
       const item = new vscode.TreeItem(
         def.label,
-        vscode.TreeItemCollapsibleState.Expanded
+        def.collapsed
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.Expanded
       );
       item.description = String(count);
       item.iconPath = new vscode.ThemeIcon(def.icon);
@@ -93,10 +115,13 @@ export class ClaudeAssetsProvider implements vscode.TreeDataProvider<Node> {
       asset.name,
       vscode.TreeItemCollapsibleState.None
     );
-    item.description = truncate(asset.description);
-    item.tooltip = asset.description
-      ? `${asset.path}\n\n${asset.description}`
-      : asset.path;
+    const detail = asset.badge
+      ? asset.description
+        ? `${asset.badge} — ${asset.description}`
+        : asset.badge
+      : asset.description;
+    item.description = truncate(detail);
+    item.tooltip = detail ? `${asset.path}\n\n${detail}` : asset.path;
     item.iconPath = new vscode.ThemeIcon(ASSET_ICON[asset.kind]);
     item.contextValue = `claudeAsset:${asset.kind}`;
     item.command = {
