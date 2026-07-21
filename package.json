@@ -2,7 +2,7 @@
   "name": "aidlc-tracker",
   "displayName": "AIDLC Tracker",
   "description": "Orchestrate, track, and sync a project through the AI-Driven Development Life Cycle (AI-DLC): Inception → Construction → Operations.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "aidlc",
   "license": "MIT",
   "repository": {
@@ -50,7 +50,7 @@
         },
         {
           "id": "aidlcClaudeAssets",
-          "name": "Claude Assets",
+          "name": "Agent Assets",
           "contextualTitle": "AIDLC",
           "icon": "media/aidlc.svg"
         }
@@ -64,7 +64,7 @@
       },
       {
         "view": "aidlcClaudeAssets",
-        "contents": "No .claude folder or CLAUDE.md detected in this workspace.\n\nThe AIDLC Tracker surfaces your Claude Code agents, commands, skills, memory and settings here once they exist.\n[Refresh](command:aidlc.refresh)",
+        "contents": "No agent assets detected in this workspace.\n\nThe AIDLC Tracker surfaces Claude Code assets (.claude/, CLAUDE.md), Kiro steering / specs / hooks (.kiro/), AI-DLC rules, Cursor and Amazon Q rules here once they exist.\n[Refresh](command:aidlc.refresh)",
         "when": "!aidlc.hasClaude"
       }
     ],

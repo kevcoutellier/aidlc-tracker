@@ -107,7 +107,16 @@ export function activate(context: vscode.ExtensionContext): void {
     () => void reload()
   );
   const claudeWatcher = new FileWatcher(
-    () => [".claude/**", "CLAUDE.md", "AGENTS.md"],
+    () => [
+      ".claude/**",
+      "CLAUDE.md",
+      "AGENTS.md",
+      ".kiro/**",
+      ".cursor/**",
+      ".cursorrules",
+      ".amazonq/**",
+      ".aidlc-rule-details/**",
+    ],
     () => void reloadClaude()
   );
 
