@@ -1,9 +1,15 @@
 import * as vscode from "vscode";
 import { ProjectState, StageState } from "../model/types";
 import { projectLevelStages } from "../model/aidlcDefinition";
-import { docsUri, stateUri, workspaceRoot } from "../core/paths";
-import { ensureDir, exists, writeIfAbsent } from "../core/fsUtil";
-import { StateWriter } from "../core/StateWriter";
+import {
+  docsUri,
+  refreshDocsFolderDetection,
+  stateUri,
+  workspaceRoot,
+} from "../core/paths";
+import { ensureDir, exists, readText, writeIfAbsent } from "../core/fsUtil";
+import { resolveStateUri, StateWriter } from "../core/StateWriter";
+import { STATE_BEGIN } from "../core/stateSerde";
 
 const README = `# AI-DLC Docs
 
@@ -43,23 +49,34 @@ explicit approval.
  * Idempotent: existing files are left untouched. Returns the fresh state.
  */
 export async function initProject(): Promise<ProjectState> {
+  await refreshDocsFolderDetection();
   const root = workspaceRoot();
   const docs = docsUri(root);
   if (!root || !docs) {
     throw new Error("Open a folder before initializing an AI-DLC project.");
   }
 
-  await ensureDir(docs);
-  await ensureDir(vscode.Uri.joinPath(docs, "inception"));
-  await ensureDir(vscode.Uri.joinPath(docs, "construction"));
-  await ensureDir(vscode.Uri.joinPath(docs, "operations"));
-  await ensureDir(vscode.Uri.joinPath(docs, "rules"));
+  // Docs already produced by AWS aidlc-workflows: track them in place, do not
+  // scaffold our folder structure or rule files into the foreign layout.
+  const primary = stateUri();
+  const foreign =
+    primary !== undefined &&
+    (await exists(primary)) &&
+    !(await readText(primary)).includes(STATE_BEGIN);
 
-  await writeIfAbsent(vscode.Uri.joinPath(docs, "README.md"), README);
-  await writeIfAbsent(
-    vscode.Uri.joinPath(docs, "rules", "aidlc-overview.md"),
-    RULES_OVERVIEW
-  );
+  if (!foreign) {
+    await ensureDir(docs);
+    await ensureDir(vscode.Uri.joinPath(docs, "inception"));
+    await ensureDir(vscode.Uri.joinPath(docs, "construction"));
+    await ensureDir(vscode.Uri.joinPath(docs, "operations"));
+    await ensureDir(vscode.Uri.joinPath(docs, "rules"));
+
+    await writeIfAbsent(vscode.Uri.joinPath(docs, "README.md"), README);
+    await writeIfAbsent(
+      vscode.Uri.joinPath(docs, "rules", "aidlc-overview.md"),
+      RULES_OVERVIEW
+    );
+  }
 
   const stages: Record<string, StageState> = {};
   for (const stage of projectLevelStages()) {
@@ -77,9 +94,10 @@ export async function initProject(): Promise<ProjectState> {
   };
 
   // Never clobber an existing tracked state — re-running init on a project that
-  // already has AI-DLC progress must preserve it.
-  const existing = stateUri();
-  if (!existing || !(await exists(existing))) {
+  // already has AI-DLC progress must preserve it. resolveStateUri points at the
+  // tracker-owned file when aidlc-state.md is foreign.
+  const target = await resolveStateUri();
+  if (!target || !(await exists(target))) {
     await new StateWriter().save(state);
   }
   return state;

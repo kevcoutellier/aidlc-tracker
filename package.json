@@ -387,7 +387,7 @@
         "aidlc.docsPath": {
           "type": "string",
           "default": "aidlc-docs",
-          "description": "Workspace-relative folder that holds AI-DLC artifacts and state."
+          "description": "Workspace-relative folder that holds AI-DLC artifacts and state. Leave unset to auto-detect: aidlc-docs/ when present, else the most recent AWS aidlc-workflows v2 record (aidlc/spaces/<space>/intents/<intent>/). Setting a value disables auto-detection."
         },
         "aidlc.anthropic.authMethod": {
           "type": "string",
