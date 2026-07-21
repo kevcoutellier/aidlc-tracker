@@ -556,7 +556,8 @@ export class Orchestrator {
     return parts.join("\n");
   }
 
-  private computeNext(state: ProjectState): StageRef | undefined {
+  /** First not-complete stage in pipeline order (also used by commands). */
+  computeNext(state: ProjectState): StageRef | undefined {
     for (const ref of this.pipeline(state)) {
       if (this.statusOf(state, ref) !== "complete") {
         return ref;
