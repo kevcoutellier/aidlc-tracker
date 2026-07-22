@@ -2,7 +2,7 @@
   "name": "aidlc-tracker",
   "displayName": "AIDLC Tracker",
   "description": "Orchestrate, track, and sync a project through the AI-Driven Development Life Cycle (AI-DLC): Inception → Construction → Operations.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "aidlc",
   "license": "MIT",
   "repository": {

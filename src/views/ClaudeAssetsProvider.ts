@@ -30,6 +30,7 @@ const GROUPS: {
   { key: "memory", label: "Memory", icon: "book", pick: (a) => a.memory },
   { key: "settings", label: "Settings", icon: "settings-gear", pick: (a) => a.settings },
   { key: "kiroSteering", label: "Kiro Steering", icon: "compass", pick: (a) => a.kiroSteering },
+  { key: "kiroAgents", label: "Kiro Agents", icon: "hubot", pick: (a) => a.kiroAgents },
   { key: "kiroSpecs", label: "Kiro Specs", icon: "notebook", pick: (a) => a.kiroSpecs },
   { key: "kiroHooks", label: "Kiro Hooks", icon: "zap", pick: (a) => a.kiroHooks },
   { key: "kiroSettings", label: "Kiro Settings", icon: "settings-gear", pick: (a) => a.kiroSettings },

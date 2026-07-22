@@ -2,7 +2,28 @@
 
 All notable changes to the AIDLC Tracker extension are documented here.
 
-## [0.0.4] - Unreleased
+## [0.0.5] - Unreleased
+
+### Fixed
+- **Projects on the released AI-DLC v2 engine (aidlc-workflows v1.0.x) are
+  now detected.** Three gaps against the shipped seeds:
+  - *Docs-root detection*: a stale flat `aidlc-docs/` — which the v2 engine
+    leaves behind as its migration source — used to shadow the live intent
+    record forever. The root choice now honors the official cursors
+    (`aidlc/active-space`, `intents/active-intent` — authoritative when they
+    resolve to a record with a state file) and otherwise picks the freshest
+    `aidlc-state.md`; a record always beats a flat dir with no state file,
+    and ties keep the flat layout (backward compatible).
+  - *Agent Assets*: the v1.0 Kiro seed installs `.kiro/agents/` (new **Kiro
+    Agents** group) and the engine under `<harness>/aidlc-common/` (folded
+    into **AI-DLC Rules**, `.kiro` and `.claude` variants) — previously
+    invisible.
+  - *Run guard*: docs living inside a v2 intent record
+    (`aidlc/spaces/…/intents/…`) now mark the project externally driven by
+    construction, so the confirmation fires even before any stage progresses
+    and without relying on asset detection.
+
+## [0.0.4] - 2026-07-21
 
 ### Added
 - **Run buttons are guarded on externally-driven projects.** When the project

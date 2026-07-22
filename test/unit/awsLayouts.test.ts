@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   awsCandidatesForStage,
+  chooseDocsRoot,
   discoverUnitIds,
   parseForeignStageProgress,
   unitTitleFromId,
@@ -75,6 +76,50 @@ test("v2 instance dirs under per-unit stage dirs are discovered and deduped", ()
 test("unit titles humanize kebab and snake ids", () => {
   assert.equal(unitTitleFromId("auth-service"), "Auth Service");
   assert.equal(unitTitleFromId("payment_gateway"), "Payment Gateway");
+});
+
+// --- docs root choice ------------------------------------------------------
+
+const FLAT = { rel: "aidlc-docs" };
+const RECORD = { rel: "aidlc/spaces/default/intents/fix-a1b2c3d4" };
+
+test("single candidates win by default", () => {
+  assert.equal(chooseDocsRoot(undefined, undefined), undefined);
+  assert.equal(chooseDocsRoot({ ...FLAT, stateMtime: 10 }, undefined), FLAT.rel);
+  assert.equal(chooseDocsRoot(undefined, { ...RECORD, stateMtime: 10 }), RECORD.rel);
+});
+
+test("the cursor-designated record beats even a newer flat layout", () => {
+  assert.equal(
+    chooseDocsRoot(
+      { ...FLAT, stateMtime: 999 },
+      { ...RECORD, stateMtime: 1, active: true }
+    ),
+    RECORD.rel
+  );
+});
+
+test("a record always beats a flat dir that has no state file", () => {
+  // The migrated aidlc-docs/ source keeps artifacts but its state moved on.
+  assert.equal(
+    chooseDocsRoot({ rel: "aidlc-docs" }, { ...RECORD, stateMtime: 1 }),
+    RECORD.rel
+  );
+});
+
+test("otherwise the freshest state file wins, ties going to flat", () => {
+  assert.equal(
+    chooseDocsRoot({ ...FLAT, stateMtime: 5 }, { ...RECORD, stateMtime: 9 }),
+    RECORD.rel
+  );
+  assert.equal(
+    chooseDocsRoot({ ...FLAT, stateMtime: 9 }, { ...RECORD, stateMtime: 5 }),
+    FLAT.rel
+  );
+  assert.equal(
+    chooseDocsRoot({ ...FLAT, stateMtime: 7 }, { ...RECORD, stateMtime: 7 }),
+    FLAT.rel
+  );
 });
 
 // --- foreign state parsing -------------------------------------------------

@@ -19,6 +19,7 @@ function assets(overrides: Partial<ClaudeAssets> = {}): ClaudeAssets {
     kiroSpecs: [],
     kiroHooks: [],
     kiroSettings: [],
+    kiroAgents: [],
     aidlcRules: [],
     cursorRules: [],
     amazonqRules: [],
@@ -41,6 +42,22 @@ test("AI-DLC rules or Kiro steering mark the project externally driven", () => {
     true
   );
   assert.equal(isExternallyDriven(undefined, assets()), false);
+});
+
+test("docs living inside a v2 intent record mark the project externally driven", () => {
+  const state = makeState({
+    docsPath: "C:\\proj\\aidlc\\spaces\\default\\intents\\fix-sort-a1b2c3d4",
+  });
+  assert.equal(isExternallyDriven(state, undefined), true);
+  assert.equal(
+    isExternallyDriven(
+      makeState({ docsPath: "/proj/aidlc/spaces/team/intents/x" }),
+      undefined
+    ),
+    true
+  );
+  // The flat native layout carries no such signal by itself.
+  assert.equal(isExternallyDriven(makeState(), undefined), false);
 });
 
 test("foreign-observed stage progress marks the project externally driven", () => {
