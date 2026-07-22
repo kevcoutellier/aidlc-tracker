@@ -277,3 +277,41 @@ function slugifyStageName(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** A candidate docs root for {@link chooseDocsRoot}. */
+export interface DocsRootCandidate {
+  /** Workspace-relative folder. */
+  rel: string;
+  /** mtime (ms) of its `aidlc-state.md`, or undefined when absent. */
+  stateMtime?: number;
+  /** Pointed at by the v2 `active-space`/`active-intent` cursors. */
+  active?: boolean;
+}
+
+/**
+ * Pick the effective docs root between the flat layout (`aidlc-docs/`) and a
+ * v2 intent record (`aidlc/spaces/<space>/intents/<intent>/`). The v2 engine
+ * migrates flat projects into the record and leaves the source dir behind, so
+ * a stale `aidlc-docs/` must not shadow the live record: the cursor-designated
+ * record wins outright, otherwise the newest state file wins, and a record
+ * always beats a flat dir that has no state at all. Ties go to the flat
+ * layout (backward compatibility).
+ */
+export function chooseDocsRoot(
+  flat: DocsRootCandidate | undefined,
+  record: DocsRootCandidate | undefined
+): string | undefined {
+  if (!record) {
+    return flat?.rel;
+  }
+  if (!flat) {
+    return record.rel;
+  }
+  if (record.active) {
+    return record.rel;
+  }
+  if (flat.stateMtime === undefined) {
+    return record.rel;
+  }
+  return (record.stateMtime ?? 0) > flat.stateMtime ? record.rel : flat.rel;
+}

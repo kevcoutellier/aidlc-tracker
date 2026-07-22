@@ -41,11 +41,21 @@ export class ClaudeScanner {
       kiroSpecs: await this.scanKiroSpecs(root.uri),
       kiroHooks: await this.scanKiroHooks(root.uri),
       kiroSettings: await this.scanKiroSettings(root.uri),
+      kiroAgents: await this.walkFiles(root.uri, ".kiro/agents", {
+        kind: "agent",
+      }),
       aidlcRules: [
         ...(await this.walkFiles(root.uri, ".kiro/aws-aidlc-rule-details", {
           kind: "rule",
         })),
         ...(await this.walkFiles(root.uri, ".aidlc-rule-details", {
+          kind: "rule",
+        })),
+        // v2 (1.0) seeds ship the AI-DLC engine under <harness>/aidlc-common.
+        ...(await this.walkFiles(root.uri, ".kiro/aidlc-common", {
+          kind: "rule",
+        })),
+        ...(await this.walkFiles(root.uri, ".claude/aidlc-common", {
           kind: "rule",
         })),
       ],

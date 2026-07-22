@@ -54,10 +54,11 @@ test("totalClaudeAssets counts every harness group", () => {
     kiroSpecs: [asset("spec")],
     kiroHooks: [],
     kiroSettings: [],
+    kiroAgents: [asset("agent")],
     aidlcRules: [asset("rule")],
     cursorRules: [asset("rule")],
     amazonqRules: [],
     shared: [],
   };
-  assert.equal(totalClaudeAssets(assets), 6);
+  assert.equal(totalClaudeAssets(assets), 7);
 });

@@ -41,6 +41,8 @@ export interface ClaudeAssets {
   kiroSpecs: ClaudeAsset[];
   kiroHooks: ClaudeAsset[];
   kiroSettings: ClaudeAsset[];
+  /** Kiro custom agents (`.kiro/agents/`, shipped by the AI-DLC v2 seed). */
+  kiroAgents: ClaudeAsset[];
   /** AWS AI-DLC rule details (`.kiro/aws-aidlc-rule-details/`, `.aidlc-rule-details/`). */
   aidlcRules: ClaudeAsset[];
   /** Cursor (`.cursor/rules/`, `.cursorrules`). */
@@ -62,6 +64,7 @@ export function totalClaudeAssets(a: ClaudeAssets): number {
     a.kiroSpecs.length +
     a.kiroHooks.length +
     a.kiroSettings.length +
+    a.kiroAgents.length +
     a.aidlcRules.length +
     a.cursorRules.length +
     a.amazonqRules.length +

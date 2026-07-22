@@ -29,6 +29,11 @@ export function isExternallyDriven(
   if (!state) {
     return false;
   }
+  // Docs living inside a v2 intent record are, by construction, written by
+  // the AI-DLC engine — externally driven even before any stage progresses.
+  if (state.docsPath.replace(/\\/g, "/").includes("/aidlc/spaces/")) {
+    return true;
+  }
   const observedProgress = (stages: Record<string, StageState>) =>
     Object.values(stages).some(
       (s) => s.foreign === true && s.status !== "not_started"
